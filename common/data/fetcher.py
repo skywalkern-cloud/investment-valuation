@@ -5,7 +5,7 @@
 第四层数据源管理: 自动降级策略
 
 降级路径:
-  同花顺(akshare) → 东方财富(fallback) → 手动录入(manual_data)
+  优先手动录入(manual_data) → 可选akshare(需网络)
 
 Phase 2 P0
 """
@@ -13,6 +13,7 @@ Phase 2 P0
 from __future__ import annotations
 
 import warnings
+import socket
 from enum import Enum
 from dataclasses import dataclass
 from typing import Optional, Dict, Any, List
@@ -20,16 +21,19 @@ import pandas as pd
 
 warnings.filterwarnings('ignore')
 
+# 全局socket超时（防止akshare网络挂起）
+socket.setdefaulttimeout(10)
+
 # ============================================================
 # 数据源枚举
 # ============================================================
 
 class DataSource(Enum):
     """数据源优先级"""
-    TONGHUASHUN = "同花顺"      # akshare同花顺接口
-    EASTMONEY = "东方财富"     # akshare东方财富接口
-    MANUAL = "手动录入"        # manual_data.yaml
-    FAILED = "失败"            # 全部失败
+    MANUAL = "手动录入"
+    TONGHUASHUN = "同花顺"
+    EASTMONEY = "东方财富"
+    FAILED = "失败"
 
 # ============================================================
 # FetchResult - 标准返回格式
@@ -58,16 +62,12 @@ class DataFetcher:
     数据获取器 - 自动降级策略
 
     使用方式:
-        fetcher = DataFetcher(manual_data={'price': 77.12})
+        fetcher = DataFetcher(manual_data={'stock_price': 77.12})
         result = fetcher.fetch_stock_price('002428')
         print(result.value, result.source)
     """
 
     def __init__(self, manual_data: Optional[Dict[str, Any]] = None):
-        """
-        Args:
-            manual_data: 手动数据字典 {'stock_price': 77.12, 'indium_price': 4350}
-        """
         self.manual_data = manual_data or {}
 
     # ============================================================
@@ -107,15 +107,23 @@ class DataFetcher:
             return 0.0
 
     # ============================================================
-    # 股票行情
+    # 股票行情 - 优先manual_data，完全跳过akshare
     # ============================================================
 
     def fetch_stock_price(self, stock_code: str, market: str = "SZ") -> FetchResult:
         """
         获取股票实时价格
-        降级: 同花顺 → 东方财富 → 手动录入
+        优先: 手动录入 → akshare(可选)
         """
-        # 1. 尝试同花顺 (akshare stock_zh_a_spot_em)
+        # P0优先: 手动录入，直接返回，无网络延迟
+        if 'stock_price' in self.manual_data:
+            return FetchResult(
+                value=float(self.manual_data['stock_price']),
+                source=DataSource.MANUAL,
+                success=True,
+            )
+
+        # 可选: akshare (可能慢，仅在需要实时数据时启用)
         try:
             import akshare as ak
             price = ak.stock_zh_a_spot_em()
@@ -131,69 +139,26 @@ class DataFetcher:
         except Exception:
             pass
 
-        # 2. 东方财富备用
-        try:
-            import akshare as ak
-            df = ak.stock_individual_info_em(symbol=stock_code)
-            for _, row in df.iterrows():
-                if '最新价' in str(row.get('item', '')) or '现价' in str(row.get('item', '')):
-                    return FetchResult(
-                        value=float(row.get('value', 0)),
-                        source=DataSource.EASTMONEY,
-                        success=True,
-                    )
-        except Exception:
-            pass
-
-        # 3. 手动录入
-        if 'stock_price' in self.manual_data:
-            return FetchResult(
-                value=self.manual_data['stock_price'],
-                source=DataSource.MANUAL,
-                success=True,
-            )
-
         return FetchResult(value=None, source=DataSource.FAILED, success=False, error="全部数据源失败")
 
     # ============================================================
-    # 财务摘要 (三表核心指标)
-    # ============================================================
-
-    def fetch_financial_summary(self, stock_code: str) -> FetchResult:
-        """获取财务摘要 - 降级: 同花顺 → 东方财富 → 手动录入"""
-        # 1. 同花顺
-        try:
-            import akshare as ak
-            df = ak.stock_financial_abstract_ths(symbol=stock_code)
-            if df is not None and not df.empty:
-                return FetchResult(value=True, source=DataSource.TONGHUASHUN, success=True)
-        except Exception:
-            pass
-
-        # 2. 东方财富备用
-        try:
-            import akshare as ak
-            df = ak.stock_financial_analysis_indicator(symbol=stock_code)
-            if df is not None and not df.empty:
-                return FetchResult(value=True, source=DataSource.EASTMONEY, success=True)
-        except Exception:
-            pass
-
-        # 3. 手动录入
-        if 'financial_summary' in self.manual_data:
-            return FetchResult(value=self.manual_data['financial_summary'], source=DataSource.MANUAL, success=True)
-
-        return FetchResult(value=None, source=DataSource.FAILED, success=False, error="财务摘要全部失败")
-
-    # ============================================================
-    # 国债收益率 (无风险利率) - P0新增
+    # 国债收益率 - 优先manual_data，完全跳过akshare
     # ============================================================
 
     def fetch_10y_treasury_yield(self) -> FetchResult:
         """
         获取10年期中国国债收益率
-        用于WACC计算中的无风险利率
+        优先: 手动录入 → akshare(可选)
         """
+        # P0优先: 手动录入
+        if 'risk_free_rate' in self.manual_data:
+            return FetchResult(
+                value=float(self.manual_data['risk_free_rate']),
+                source=DataSource.MANUAL,
+                success=True,
+            )
+
+        # 可选: akshare
         try:
             import akshare as ak
             df = ak.bond_zh_us_rate()
@@ -203,7 +168,7 @@ class DataFetcher:
                 if not vals.empty:
                     latest = vals.iloc[-1]
                     return FetchResult(
-                        value=float(latest[col]) / 100,  # 转为小数形式
+                        value=float(latest[col]) / 100,
                         source=DataSource.TONGHUASHUN,
                         success=True,
                         timestamp=str(latest['日期']),
@@ -211,18 +176,29 @@ class DataFetcher:
         except Exception:
             pass
 
-        # Fallback: 手动录入的Rf
-        if 'risk_free_rate' in self.manual_data:
-            return FetchResult(
-                value=self.manual_data['risk_free_rate'],
-                source=DataSource.MANUAL,
-                success=True,
-            )
-
-        # 最终降级: 2.5%
+        # 最终降级
         return FetchResult(
             value=0.025,
             source=DataSource.MANUAL,
             success=True,
             error="使用fallback值2.5%",
         )
+
+    # ============================================================
+    # 财务摘要 (不常用，保留akshare路径)
+    # ============================================================
+
+    def fetch_financial_summary(self, stock_code: str) -> FetchResult:
+        """获取财务摘要"""
+        if 'financial_summary' in self.manual_data:
+            return FetchResult(value=self.manual_data['financial_summary'], source=DataSource.MANUAL, success=True)
+
+        try:
+            import akshare as ak
+            df = ak.stock_financial_abstract_ths(symbol=stock_code)
+            if df is not None and not df.empty:
+                return FetchResult(value=True, source=DataSource.TONGHUASHUN, success=True)
+        except Exception:
+            pass
+
+        return FetchResult(value=None, source=DataSource.FAILED, success=False, error="财务摘要全部失败")
