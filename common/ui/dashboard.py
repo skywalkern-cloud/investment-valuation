@@ -18,8 +18,6 @@ import numpy as np
 from typing import Dict, List, Optional, Tuple
 
 from common.core.discounting_engine import DiscountingEngine
-from common.core.sotp_engine import SOTPEngine
-from common.core.financial_foundation import FinancialFoundation
 
 
 # ========== Page Config ==========
@@ -74,8 +72,8 @@ def render_soccer_field(
 def render_sensitivity_heatmap(
     base_fcf: List[float],
     terminal_fcf: float,
-    wacc: float,
-    shares: float,
+    _wacc: float,
+    shares: float = 6.53,
     terminal_range: Tuple[float, float, float] = (0.02, 0.03, 0.04),
     wacc_range: Tuple[float, float, float] = (0.05, 0.07, 0.10),
 ) -> None:
@@ -150,7 +148,7 @@ def render_sentiment_bias(
         st.metric("当前价", f"{current_price:.1f}元")
 
     st.write(f"**估值状态**: {status}")
-    progress = min(max(1/pv_ratio, 0), 1) if pv_ratio > 0 else 0  # type: ignore
+    progress = float(min(max(1/pv_ratio, 0), 1)) if pv_ratio > 0 else 0.0
     st.progress(progress)
 
 
