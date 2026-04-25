@@ -58,7 +58,7 @@ def render_soccer_field(
         "目标价": [m[1] for m in methods],
     })
 
-    st.bar_chart(chart_data.set_index("估值方法"), color=["#4CAF50", "#2196F3", "#FF9800", "#E91E63", "#F44336"][:len(methods)])
+    st.bar_chart(chart_data.set_index("估值方法"), color="#4CAF50")
 
     # 显示具体数值
     col1, col2, col3 = st.columns(3)
