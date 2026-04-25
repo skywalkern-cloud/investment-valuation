@@ -1,0 +1,246 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+概率加权引擎 (Probability Weight Engine)
+Phase 2 P0: 将"行业洞察"转化为"算法"
+"""
+
+from __future__ import annotations
+
+from typing import Dict, List, Any, Optional
+from dataclasses import dataclass, field
+
+
+@dataclass
+class ProbabilityEvent:
+    """
+    关键事件定义
+
+    Attributes:
+        name: 事件名称
+        probability: 主观概率 (0.0 ~ 1.0)
+        magnitude: 影响幅度 (1.3 = 估值×1.3)
+        impact: 'positive' | 'negative'
+        description: 事件描述
+        source: 概率来源依据
+    """
+    name: str
+    probability: float
+    magnitude: float
+    impact: str = 'positive'
+    description: str = ""
+    source: str = ""
+
+
+class ProbabilityWeightEngine:
+    """
+    概率加权引擎
+
+    将"行业洞察"（关键事件的主观概率）转化为估值调整。
+
+    使用方式:
+    >>> engine = ProbabilityWeightEngine()
+    >>> engine.add_event('1.6T认证通过', probability=0.65, magnitude=1.4)
+    >>> engine.add_event('良率突破85%', probability=0.55, magnitude=1.2)
+    >>> weighted_value = engine.apply(base_value=30.0)
+    >>> print(f"加权市值: {weighted_value:.1f}亿元")
+    """
+
+    def __init__(self):
+        self.events: List[ProbabilityEvent] = []
+
+    def add_event(
+        self,
+        name: str,
+        probability: float,
+        magnitude: float,
+        impact: str = 'positive',
+        description: str = "",
+        source: str = "",
+    ) -> 'ProbabilityWeightEngine':
+        """
+        添加一个关键事件
+
+        Args:
+            name: 事件名称
+            probability: 主观概率 (0.0 ~ 1.0)
+            magnitude: 影响幅度 (1.4 = 估值上涨40%)
+            impact: 'positive' 或 'negative'
+            description: 事件描述
+            source: 概率来源依据
+
+        Returns:
+            self (支持链式调用)
+        """
+        # 校验
+        if not 0 <= probability <= 1:
+            raise ValueError(f"probability must be 0~1, got {probability}")
+        if magnitude <= 0:
+            raise ValueError(f"magnitude must be > 0, got {magnitude}")
+        if impact not in ('positive', 'negative'):
+            raise ValueError(f"impact must be 'positive' or 'negative', got {impact}")
+
+        ev = ProbabilityEvent(
+            name=name,
+            probability=probability,
+            magnitude=magnitude,
+            impact=impact,
+            description=description,
+            source=source,
+        )
+        self.events.append(ev)
+        return self
+
+    def add_event_from_dict(self, config: Dict) -> 'ProbabilityWeightEngine':
+        """从config字典添加事件"""
+        return self.add_event(
+            name=config['name'],
+            probability=config['probability'],
+            magnitude=config['magnitude'],
+            impact=config.get('impact', 'positive'),
+            description=config.get('description', ''),
+            source=config.get('source', ''),
+        )
+
+    def remove_event(self, name: str) -> bool:
+        """移除指定事件"""
+        for i, ev in enumerate(self.events):
+            if ev.name == name:
+                self.events.pop(i)
+                return True
+        return False
+
+    def apply(self, base_value: float) -> float:
+        """
+        应用所有事件权重，计算调整后估值
+
+        公式:
+          positive:  adjusted = base × (1 + (mag-1) × prob)
+          negative:  adjusted = base × (1 - (1-mag) × prob)
+
+        Args:
+            base_value: 基础估值 (亿元市值)
+
+        Returns:
+            调整后估值 (亿元)
+        """
+        adjusted = base_value
+        for ev in self.events:
+            if ev.impact == 'positive':
+                # 正向影响: 概率 × 幅度权重
+                # 例: prob=0.65, mag=1.4
+                #     = base × (1 + (1.4-1) × 0.65)
+                #     = base × 1.26  (上涨26%)
+                adjustment = (ev.magnitude - 1) * ev.probability
+                adjusted *= (1 + adjustment)
+            else:
+                # 负向影响
+                # 例: prob=0.30, mag=0.85
+                #     = base × (1 - (1-0.85) × 0.30)
+                #     = base × 0.955  (下跌4.5%)
+                adjustment = (1 - ev.magnitude) * ev.probability
+                adjusted *= (1 - adjustment)
+
+        return adjusted
+
+    def breakdown(self, base_value: float) -> Dict[str, Any]:
+        """
+        返回详细拆解
+
+        Returns:
+            {
+                'base_value': float,
+                'adjusted_value': float,
+                'total_multiplier': float,
+                'events': [
+                    {
+                        'name': str,
+                        'probability': float,
+                        'magnitude': float,
+                        'impact': str,
+                        'contribution': float,  # 该事件贡献的比例变化
+                    }, ...
+                ],
+            }
+        """
+        total_multiplier = 1.0
+        event_details = []
+
+        for ev in self.events:
+            if ev.impact == 'positive':
+                contrib = (ev.magnitude - 1) * ev.probability
+            else:
+                contrib = -(1 - ev.magnitude) * ev.probability
+
+            total_multiplier *= (1 + contrib if ev.impact == 'positive' else 1 - (1-ev.magnitude)*ev.probability)
+
+            event_details.append({
+                'name': ev.name,
+                'probability': ev.probability,
+                'magnitude': ev.magnitude,
+                'impact': ev.impact,
+                'contribution': contrib,
+                'description': ev.description,
+                'source': ev.source,
+            })
+
+        return {
+            'base_value': base_value,
+            'adjusted_value': self.apply(base_value),
+            'total_multiplier': total_multiplier,
+            'upside_pct': (total_multiplier - 1) * 100,
+            'events': event_details,
+        }
+
+    def summary(self, base_value: float) -> str:
+        """生成文字摘要"""
+        bd = self.breakdown(base_value)
+        lines = []
+        lines.append("【概率加权结果】")
+        lines.append(f"基础市值: {bd['base_value']:.1f}亿元")
+        lines.append(f"加权市值: {bd['adjusted_value']:.1f}亿元 ({bd['upside_pct']:+.1f}%)")
+        lines.append("")
+        lines.append("【事件拆解】")
+        for ev in bd['events']:
+            direction = "↑" if ev['impact'] == 'positive' else "↓"
+            lines.append(
+                f"  {ev['name']}: {ev['probability']*100:.0f}%概率 "
+                f"{direction}{abs(ev['magnitude']-1)*100:.0f}% "
+                f"(贡献{ev['contribution']*100:+.1f}%)"
+            )
+        return '\n'.join(lines)
+
+    @classmethod
+    def from_config_list(cls, events: List[Dict]) -> 'ProbabilityWeightEngine':
+        """从config列表创建引擎"""
+        engine = cls()
+        for ev in events:
+            engine.add_event_from_dict(ev)
+        return engine
+
+
+# ========== 测试 ==========
+
+if __name__ == '__main__':
+    print("=== ProbabilityWeightEngine 测试 ===\n")
+
+    # 云南锗业配置
+    events = [
+        {'name': '1.6T认证通过', 'probability': 0.65, 'magnitude': 1.4, 'impact': 'positive'},
+        {'name': '良率突破85%', 'probability': 0.55, 'magnitude': 1.2, 'impact': 'positive'},
+        {'name': '锗价下跌20%', 'probability': 0.30, 'magnitude': 0.85, 'impact': 'negative'},
+        {'name': '1.6T认证失败', 'probability': 0.15, 'magnitude': 0.5, 'impact': 'negative'},
+    ]
+
+    engine = ProbabilityWeightEngine.from_config_list(events)
+
+    # 基础市值 (SOTP合计约30亿)
+    base = 30.0
+
+    print(engine.summary(base))
+    print()
+
+    # 详细拆解
+    bd = engine.breakdown(base)
+    print(f"总乘数: {bd['total_multiplier']:.3f}x")
+    print(f"相当于目标价: {bd['adjusted_value']/6.53:.1f}元")
