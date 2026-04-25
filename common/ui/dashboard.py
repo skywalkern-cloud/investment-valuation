@@ -18,7 +18,6 @@ import numpy as np
 from typing import Dict, List, Optional, Tuple
 import sys
 import os
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from common.core.discounting_engine import DiscountingEngine
 from common.core.sotp_engine import SOTPEngine
