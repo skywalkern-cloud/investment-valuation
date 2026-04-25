@@ -3,15 +3,15 @@
 """
 Streamlit Entry Point - 云南锗业估值仪表盘
 部署: Streamlit Community Cloud
-
-打开: https://share.streamlit.io/skywalkern-cloud/investment-valuation/main
 """
 
 import sys
 import os
 
-# Add project root to path
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+# Change to repo root (where this file lives)
+repo_root = os.path.dirname(os.path.abspath(__file__))
+os.chdir(repo_root)
+sys.path.insert(0, repo_root)
 
 # Run the dashboard
 from common.ui.dashboard import main
