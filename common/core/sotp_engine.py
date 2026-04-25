@@ -306,7 +306,7 @@ def load_from_yaml_config(config: Dict, financials, auto_vars: Dict, manual_data
 
 if __name__ == '__main__':
     # 快速演示
-    from core.financial_foundation import FinancialFoundation
+    from common.core.financial_foundation import FinancialFoundation
 
     print("=== SOTP引擎演示 ===\n")
 
