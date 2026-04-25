@@ -1,0 +1,74 @@
+# 【标的名称】(股票代码) 估值模型配置
+# 通用动态估值系统 v1.2
+# 使用方式: 复制本目录 → 修改config.yaml → 运行model.py
+
+meta:
+  stock_code: "XXXXXX"
+  stock_name: "标的名称"
+  market: "SZ"  # 或 "SH"
+  total_shares: 0.0  # 亿股 (从akshare自动获取，可不填)
+  last_updated: "2026-04-25"
+
+# ============================================================
+# 方法论注释 (P1必填)
+# ============================================================
+methodology_notes:
+  terminal_growth:
+    value: 0.03  # 3% (基准)
+    assumption: "填写假设来源"
+    rationale: "填写为什么用这个数字"
+    sensitivity:
+      - { value: 0.02, label: "悲观", impact: "低于中枢X%" }
+      - { value: 0.03, label: "基准", impact: "基准假设" }
+      - { value: 0.04, label: "乐观", impact: "高于中枢X%" }
+
+  wacc:
+    risk_free_rate:
+      source: "10年期国债"
+      auto: true
+      fallback: 0.025
+    beta:
+      value: 1.0
+      source: "wind/choice"
+      last_updated: "2026-04-25"  # 每次更新beta后修改此日期
+      expiry_days: 90
+    market_premium: 0.05
+
+# ============================================================
+# SOTP分部配置
+# ============================================================
+plugins:
+  - type: "manufacturing"  # 或 fabless / platform
+    name: "分部名称"
+    weight: 1.0  # 利润占比(0.0~1.0)
+    pe_min: 15
+    pe_max: 30
+    pe_base: 20
+    variables:
+      # 填写该分部需要的变量
+      产能: 0
+      良率: 0.0
+    auto_variables:
+      # 从自动数据源获取的变量
+      # 商品售价: "商品价格symbol"
+    manual_variables:
+      # 手动填入的变量
+      售价: 0
+      成本: 0
+
+# ============================================================
+# 关键事件概率权重 (可选)
+# ============================================================
+events: []
+  # - name: "事件名称"
+  #   probability: 0.50
+  #   impact: "positive"  # 或 "negative"
+  #   magnitude: 1.20    # 1.2x = 上涨20%
+
+# ============================================================
+# 飞书Bitable (可选)
+# ============================================================
+bitable:
+  enabled: false
+  # app_token: ""
+  # table_id: ""
