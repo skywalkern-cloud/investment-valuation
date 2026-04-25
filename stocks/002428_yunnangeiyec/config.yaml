@@ -1,0 +1,117 @@
+# 云南锗业(002428) 估值模型配置
+# 通用动态估值系统 v1.2
+
+meta:
+  stock_code: "002428"
+  stock_name: "云南锗业"
+  market: "SZ"
+  total_shares: 6.53  # 亿股
+  last_updated: "2026-04-25"
+
+# ============================================================
+# 方法论注释 (P1: terminal growth + beta说明)
+# ============================================================
+methodology_notes:
+  terminal_growth:
+    value: 0.03  # 3%
+    assumption: "假设公司永续增长率接近中国长期GDP增速"
+    rationale: |
+      云南锗业为周期性商品公司，锗锭业务长期增速≈通胀(2-3%)；
+      半导体业务(磷化铟/1.6T)处于成长期，增速更高；
+      综合给予3%作为保守永续增长率假设。
+    sensitivity:
+      - { value: 0.02, label: "悲观", impact: "低于中枢15-20%" }
+      - { value: 0.03, label: "基准", impact: "基准假设" }
+      - { value: 0.04, label: "乐观", impact: "高于中枢15-25%" }
+    reference: "DCF估值对terminal_growth极度敏感，详见sensitivity输出"
+
+  wacc:
+    risk_free_rate:
+      source: "10年期国债收益率"
+      auto: true  # 实时获取
+      fallback: 0.025  # 2.5% (无实时数据时的fallback)
+    beta:
+      value: 1.2
+      source: "wind/choice历史Beta (1年滚动)"
+      last_updated: "2026-04-25"
+      expiry_days: 90
+      expiry_warning: "beta超过90天未更新，请重新确认市场风险溢价"
+    market_premium: 0.05  # 5% (A股市场风险溢价，固定值需定期审视)
+    cost_of_debt: 0.04  # 4% (参考LPR)
+
+# ============================================================
+# SOTP分部配置 (Phase 1)
+# ============================================================
+plugins:
+  # 传统锗锭业务 - 制造与材料类
+  - type: "manufacturing"
+    name: "传统锗锭业务"
+    weight: 0.40                    # 利润占比(非营收占比)
+    pe_min: 12
+    pe_max: 25
+    pe_base: 18
+    variables:
+      产能: 50                      # 吨/年
+      良率: 0.88                   # 88%
+      稼动率: 0.85                 # 85%
+    auto_variables:
+      商品售价: "germanium_price"  # 实时获取锗价(SMM)
+    manual_variables:
+      原料成本: 8500               # 元/kg (锗矿石采购价)
+
+  # 半导体业务 - 研发与设计类
+  - type: "fabless"
+    name: "半导体分部"
+    weight: 0.60                    # 利润占比
+    pe_min: 50
+    pe_max: 80
+    pe_base: 65
+    variables:
+      订单管道: 5.0                # 亿 (预期订单)
+      研发成功率: 0.75              # 75%
+      终端渗透率: 0.15              # 15%
+      认证进度: 60                  # 60% (1.6T认证中)
+      BOM占比: 0.35                # 35%
+
+# ============================================================
+# 关键事件概率权重 (Phase 2 P0)
+# ============================================================
+events:
+  - name: "1.6T认证通过"
+    probability: 0.65
+    impact: "positive"
+    magnitude: 1.40               # 通过后股价×1.4
+    description: "1.6T光模块认证通过并进入量产"
+
+  - name: "良率突破85%"
+    probability: 0.55
+    impact: "positive"
+    magnitude: 1.20               # 突破后股价×1.2
+
+  - name: "锗价下跌20%"
+    probability: 0.30
+    impact: "negative"
+    magnitude: 0.85              # 下跌后股价×0.85
+
+  - name: "1.6T认证失败"
+    probability: 0.15
+    impact: "negative"
+    magnitude: 0.50              # 失败后股价×0.5
+
+# ============================================================
+# 飞书Bitable配置
+# ============================================================
+bitable:
+  enabled: true
+  app_token: "EXpqbt8RdaVNsaslViKclTu9nCe"
+  table_id: "tblAH85HuqZuyLSH"
+  fields:
+    date: "fldkOQjhFM"
+    indium_price: "fldNlI1JLQ"
+    germanium_price: "fldmJBcEl9"
+    yield_6inch: "fldOtheZPA"
+    ratio_6inch: "fldiRWk0eN"
+    cert_status: "fldklk4Sf4"
+    stock_price: "fldA6Iz4ZT"
+    semi_nm: "fldgTsp5DA"
+    trad_nm: "fldZBlam0n"
