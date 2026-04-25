@@ -113,7 +113,7 @@ def render_sensitivity_heatmap(
 
     st.dataframe(
         df.style.background_gradient(cmap="RdYlGn", axis=None),
-        use_container_width=True,
+        width='stretch',
     )
     st.caption("行: 永续增长率(TG) | 列: WACC | 数值: 目标价(元)")
 
@@ -150,7 +150,7 @@ def render_sentiment_bias(
         st.metric("当前价", f"{current_price:.1f}元")
 
     st.write(f"**估值状态**: {status}")
-    progress = min(max(1/pv_ratio, 0), 1) if pv_ratio > 0 else 0
+    progress = min(max(1/pv_ratio, 0), 1) if pv_ratio > 0 else 0  # type: ignore
     st.progress(progress)
 
 
