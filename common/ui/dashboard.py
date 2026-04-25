@@ -201,7 +201,7 @@ def main():
     st.markdown("---")
     render_soccer_field(sotp_price, dcf_price, current_price)
     st.markdown("---")
-    render_sensitivity_heatmap(fcf_proj, fcf_proj[-1], wacc, 6.53)
+    render_sensitivity_heatmap(fcf_proj, fcf_proj[-1], 6.53, wacc_range=(0.05, 0.065, 0.08), terminal_range=(0.02, 0.03, 0.04))
     st.markdown("---")
     render_sentiment_bias(dcf_price, current_price)
 
