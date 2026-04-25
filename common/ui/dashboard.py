@@ -16,8 +16,6 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 from typing import Dict, List, Optional, Tuple
-import sys
-import os
 
 from common.core.discounting_engine import DiscountingEngine
 from common.core.sotp_engine import SOTPEngine
@@ -26,7 +24,7 @@ from common.core.financial_foundation import FinancialFoundation
 
 # ========== Page Config ==========
 st.set_page_config(
-    page_title="云南锗业估值仪表盘",
+    page_title="云南锗业(002428) 估值仪表盘",
     page_icon="📊",
     layout="wide",
 )
@@ -45,7 +43,7 @@ def render_soccer_field(
     渲染足球场图表 - 多估值方法区间对比
     """
     st.subheader("⚽ 估值足球场")
-    
+
     # 构建数据
     methods = [
         ("SOTP分部估值", sotp_price, "🏢"),
@@ -54,17 +52,14 @@ def render_soccer_field(
         ("PE估值 (25x)", current_price * 0.5, "📈"),
         ("当前价格", current_price, "🔴"),
     ]
-    
-    df = pd.DataFrame(methods, columns=["方法", "价格", "图标"])
-    
-    # 简化柱状图
+
     chart_data = pd.DataFrame({
         "估值方法": [m[0] for m in methods],
         "目标价": [m[1] for m in methods],
     })
-    
+
     st.bar_chart(chart_data.set_index("估值方法"), color=["#4CAF50", "#2196F3", "#FF9800", "#E91E63", "#F44336"][:len(methods)])
-    
+
     # 显示具体数值
     col1, col2, col3 = st.columns(3)
     with col1:
@@ -88,13 +83,13 @@ def render_sensitivity_heatmap(
     渲染双变量敏感度热力图
     """
     st.subheader("🌡️ DCF双变量敏感度分析")
-    
+
     engine = DiscountingEngine()
-    
+
     # 生成网格
     tg_values = list(terminal_range)
     wacc_values = list(wacc_range)
-    
+
     results = []
     for tg in tg_values:
         row = []
@@ -109,21 +104,17 @@ def render_sensitivity_heatmap(
             )
             row.append(r['目标价_元'])
         results.append(row)
-    
-    # 转为DataFrame
+
     df = pd.DataFrame(
         results,
         index=[f"TG={t*100:.0f}%" for t in tg_values],
         columns=[f"WACC={w*100:.0f}%" for w in wacc_values],
     )
-    
-    # 热力图
+
     st.dataframe(
         df.style.background_gradient(cmap="RdYlGn", axis=None),
         use_container_width=True,
     )
-    
-    # 说明
     st.caption("行: 永续增长率(TG) | 列: WACC | 数值: 目标价(元)")
 
 
@@ -131,34 +122,25 @@ def render_sensitivity_heatmap(
 def render_sentiment_bias(
     target_price: float,
     current_price: float,
-    consensus_price: Optional[float] = None,
 ) -> None:
     """
     渲染情绪偏差指标 - P/V比率
     """
     st.subheader("🎭 情绪偏差监测")
-    
-    # P/V = Price / Valuation
+
     pv_ratio = current_price / target_price if target_price > 0 else 0
-    
-    # 状态
+
     if pv_ratio > 1.5:
         status = "🔴 严重高估"
-        color = "red"
     elif pv_ratio > 1.2:
         status = "🟠 偏高"
-        color = "orange"
     elif pv_ratio > 0.8:
         status = "🟢 合理区间"
-        color = "green"
     elif pv_ratio > 0.5:
         status = "🔵 偏低"
-        color = "blue"
     else:
         status = "⚫ 严重低估"
-        color = "purple"
-    
-    # 显示
+
     col1, col2, col3 = st.columns(3)
     with col1:
         st.metric("P/V比率", f"{pv_ratio:.2f}x", help="当前价格/目标价格")
@@ -166,44 +148,40 @@ def render_sentiment_bias(
         st.metric("目标价", f"{target_price:.1f}元")
     with col3:
         st.metric("当前价", f"{current_price:.1f}元")
-    
+
     st.write(f"**估值状态**: {status}")
-    
-    # 进度条
     progress = min(max(1/pv_ratio, 0), 1) if pv_ratio > 0 else 0
     st.progress(progress)
+
+
+# ========== 数据获取（带缓存，不阻塞启动） ==========
+@st.cache_data(ttl=3600)
+def get_stock_price() -> float:
+    """
+    获取股价 - 用手动数据，避免akshare阻塞启动
+    返回: 股价（元）
+    """
+    return 77.12  # 当前价固定，后续可改为实时获取
 
 
 # ========== Main App ==========
 def main():
     st.title("📊 云南锗业(002428) 估值仪表盘")
-    
+
     # 侧边栏 - 参数调整
     st.sidebar.header("参数设置")
-    
-    # 获取实时数据
-    try:
-        from common.data.fetcher import DataFetcher
-        fetcher = DataFetcher(manual_data={
-            'stock_price': 77.12,
-            'germanium_price': 17500,
-            'indium_price': 4350,
-        })
-        price_result = fetcher.fetch_stock_price('002428')
-        current_price = price_result.value if price_result.is_success else 77.12
-    except:
-        current_price = 77.12
-    
+    st.sidebar.caption("云南锗业 | SOTP+DCF分部估值")
+
     # 用户可调整参数
-    rf = st.sidebar.slider("无风险利率", 0.01, 0.05, 0.025, 0.0025)
-    beta = st.sidebar.slider("Beta", 0.5, 2.0, 1.2, 0.1)
-    tg = st.sidebar.slider("永续增长率", 0.01, 0.05, 0.03, 0.01)
-    
+    rf = st.sidebar.slider("无风险利率(Rf)", 0.01, 0.05, 0.025, 0.0025, format="%.3f")
+    beta = st.sidebar.slider("Beta系数", 0.5, 2.0, 1.2, 0.1)
+    tg = st.sidebar.slider("永续增长率(TG)", 0.01, 0.05, 0.03, 0.01, format="%.0f%%") / 100
+
     # 计算WACC
     engine = DiscountingEngine()
     wacc = engine.calc_wacc(risk_free_rate=rf, beta=beta)
-    st.sidebar.write(f"WACC: {wacc*100:.2f}%")
-    
+    st.sidebar.write(f"**WACC: {wacc*100:.2f}%**")
+
     # 运行DCF
     fcf_proj = [0.67, 0.87, 1.22, 1.36, 1.39]
     dcf_result = engine.dcf_fcf(
@@ -214,11 +192,13 @@ def main():
         shares=6.53,
         terminal_growth=tg,
     )
-    
-    sotp_price = 4.6  # SOTP固定值
+
+    sotp_price = 4.6  # SOTP基准值
     dcf_price = dcf_result['目标价_元']
-    
-    # 渲染三个组件
+    current_price = get_stock_price()
+
+    # 渲染
+    st.markdown("---")
     render_soccer_field(sotp_price, dcf_price, current_price)
     st.markdown("---")
     render_sensitivity_heatmap(fcf_proj, fcf_proj[-1], wacc, 6.53)
