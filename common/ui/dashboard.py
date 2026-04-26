@@ -173,7 +173,7 @@ def main():
     # 用户可调整参数
     rf = st.sidebar.slider("无风险利率(Rf)", 0.01, 0.05, 0.025, 0.0025, format="%.3f")
     beta = st.sidebar.slider("Beta系数", 0.5, 2.0, 1.2, 0.1)
-    tg = st.sidebar.slider("永续增长率(TG)", 0.01, 0.05, 0.03, 0.01, format="%.0f%%") / 100
+    tg = st.sidebar.slider("永续增长率(TG)", 0.01, 0.05, 0.03, 0.01)
 
     # 计算WACC
     engine = DiscountingEngine()
