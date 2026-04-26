@@ -1,0 +1,116 @@
+# 阿里巴巴(09988) 估值模型配置
+# 通用动态估值系统 v1.0 - Alibaba HK
+
+meta:
+  stock_code: "09988"
+  stock_name: "阿里巴巴"
+  market: "HK"
+  total_shares: 47.5
+  last_updated: "2026-04-26"
+
+methodology_notes:
+  terminal_growth:
+    value: 0.04
+    assumption: "阿里巴巴为中国最大电商平台，用户增长放缓但货币化率有提升空间"
+    rationale: |
+      核心商业: 成熟业务，增速约5-8%，接近中国社零增速
+      云业务: 快速成长，增速约20-30%，AI驱动
+      国际业务: 高速增长，增速约30-40%
+      综合给予4%作为保守永续增长率假设
+    sensitivity:
+      - value: 0.03
+        label: "悲观"
+        impact: "低于中枢15-20%"
+      - value: 0.04
+        label: "基准"
+        impact: "基准假设"
+      - value: 0.05
+        label: "乐观"
+        impact: "高于中枢15-25%"
+
+  wacc:
+    risk_free_rate:
+      source: "10年期国债收益率"
+      auto: true
+      fallback: 0.035
+    beta:
+      value: 0.9
+      source: "历史Beta (1年滚动)"
+      last_updated: "2026-04-26"
+      expiry_days: 90
+    market_premium: 0.07
+    cost_of_debt: 0.045
+
+plugins:
+  - type: "platform"
+    name: "核心商业"
+    weight: 0.50
+    pe_min: 10
+    pe_max: 18
+    pe_base: 14
+
+  - type: "fabless"
+    name: "云业务"
+    weight: 0.25
+    pe_min: 15
+    pe_max: 25
+    pe_base: 20
+
+  - type: "platform"
+    name: "国际商业"
+    weight: 0.10
+    pe_min: 8
+    pe_max: 15
+    pe_base: 12
+
+  - type: "logistics"
+    name: "菜鸟物流"
+    weight: 0.05
+    pe_min: 8
+    pe_max: 15
+    pe_base: 10
+
+  - type: "manufacturing"
+    name: "数字媒体娱乐"
+    weight: 0.03
+    pe_min: 5
+    pe_max: 10
+    pe_base: 7
+
+  - type: "manufacturing"
+    name: "创新业务及其他"
+    weight: 0.07
+    pe_min: 5
+    pe_max: 10
+    pe_base: 8
+
+holdings:
+  - name: "蚂蚁集团"
+    stake: 0.33
+    basis: "成本法/估值"
+    value_per_share: 8.3
+    note: "约33%持股，2020年估值3000亿美元"
+
+  - name: "A股/港股上市公司"
+    stake: 1.0
+    basis: "市值法"
+    note: "包括分众传媒等联营公司"
+
+events:
+  - name: "云业务扭亏为盈"
+    probability: 0.80
+    impact: "positive"
+    magnitude: 1.15
+    description: "阿里云实现稳定盈利，利润率持续提升"
+
+  - name: "AI驱动电商GMV增长"
+    probability: 0.70
+    impact: "positive"
+    magnitude: 1.12
+    description: "AI推荐/广告提升货币化率"
+
+  - name: "宏观消费复苏不及预期"
+    probability: 0.40
+    impact: "negative"
+    magnitude: 0.90
+    description: "消费疲软导致GMV增长放缓"
