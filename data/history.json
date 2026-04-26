@@ -1,0 +1,74 @@
+[
+  {
+    "date": "2026-04-20",
+    "indium_price": 4200,
+    "germanium_price": 16500,
+    "stock_price": 70.5,
+    "sotp_price": 4.5,
+    "dcf_price": 5.1,
+    "weighted_price": 6.4,
+    "wacc": 6.45,
+    "upside_pct": -94,
+    "pv_ratio": 16.2
+  },
+  {
+    "date": "2026-04-21",
+    "indium_price": 4250,
+    "germanium_price": 16700,
+    "stock_price": 72.0,
+    "sotp_price": 4.6,
+    "dcf_price": 5.2,
+    "weighted_price": 6.5,
+    "wacc": 6.45,
+    "upside_pct": -94,
+    "pv_ratio": 15.7
+  },
+  {
+    "date": "2026-04-22",
+    "indium_price": 4300,
+    "germanium_price": 16800,
+    "stock_price": 68.3,
+    "sotp_price": 4.4,
+    "dcf_price": 5.0,
+    "weighted_price": 6.3,
+    "wacc": 6.45,
+    "upside_pct": -94,
+    "pv_ratio": 15.5
+  },
+  {
+    "date": "2026-04-23",
+    "indium_price": 4280,
+    "germanium_price": 16600,
+    "stock_price": 74.2,
+    "sotp_price": 4.7,
+    "dcf_price": 5.3,
+    "weighted_price": 6.6,
+    "wacc": 6.45,
+    "upside_pct": -94,
+    "pv_ratio": 15.8
+  },
+  {
+    "date": "2026-04-24",
+    "indium_price": 4350,
+    "germanium_price": 17000,
+    "stock_price": 71.5,
+    "sotp_price": 4.5,
+    "dcf_price": 5.1,
+    "weighted_price": 6.4,
+    "wacc": 6.45,
+    "upside_pct": -94,
+    "pv_ratio": 15.9
+  },
+  {
+    "date": "2026-04-25",
+    "indium_price": 4320,
+    "germanium_price": 17200,
+    "stock_price": 76.8,
+    "sotp_price": 4.8,
+    "dcf_price": 5.3,
+    "weighted_price": 6.6,
+    "wacc": 6.45,
+    "upside_pct": -94,
+    "pv_ratio": 16.1
+  }
+]
