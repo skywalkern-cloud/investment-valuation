@@ -133,7 +133,7 @@ def get_price_09988() -> float:
         if m:
             fields = m.group(1).split(',')
             if len(fields) > 6:
-                price = float(fields[3])  # 字段3是当前价
+                price = float(fields[6])  # 字段6是当前价
                 if price > 0:
                     return price
     except Exception as e:
