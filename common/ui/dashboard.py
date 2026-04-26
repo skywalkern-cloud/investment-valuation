@@ -89,48 +89,138 @@ def render_trend(df: pd.DataFrame):
         st.caption("历史数据路径: data/history.json")
         return
 
-    cols = st.columns(2)
-    with cols[0]:
-        if 'indium_price' in df.columns:
-            st.markdown("**铟价 (元/kg)**")
-            st.line_chart(df['indium_price'].dropna())
-    with cols[1]:
-        if 'germanium_price' in df.columns:
-            st.markdown("**锗价 (万元/吨)**")
-            st.line_chart(df['germanium_price'].dropna())
+    try:
+        import altair as alt
 
-    if 'stock_price' in df.columns:
-        st.markdown("**股价 vs 目标价**")
-        price_cols = ['stock_price']
-        for c in ['sotp_price', 'dcf_price', 'weighted_price']:
-            if c in df.columns:
-                price_cols.append(c)
-        st.line_chart(df[price_cols])
+        # 铟价 + 锗价
+        cols = st.columns(2)
+        with cols[0]:
+            if 'indium_price' in df.columns:
+                st.markdown("**铟价 (元/kg)**")
+                indium_df = df[['indium_price']].dropna().reset_index()
+                indium_df.columns = ['date', 'value']
+                chart = alt.Chart(indium_df).mark_line(point=True).encode(
+                    x='date:T', y='value:Q'
+                ).properties(height=200)
+                text = alt.Chart(indium_df).mark_text(dy=-10, size=11, color='#333').encode(
+                    x='date:T', y='value:Q', text=alt.Text('value:Q', format='.0f')
+                )
+                st.altair_chart(chart + text, use_container_width=True)
 
-    if 'upside_pct' in df.columns:
-        st.markdown("**上涨空间 (%)**")
-        st.bar_chart(df['upside_pct'].dropna())
+        with cols[1]:
+            if 'germanium_price' in df.columns:
+                st.markdown("**锗价 (万元/吨)**")
+                ge_df = df[['germanium_price']].dropna().reset_index()
+                ge_df.columns = ['date', 'value']
+                chart = alt.Chart(ge_df).mark_line(point=True).encode(
+                    x='date:T', y='value:Q'
+                ).properties(height=200)
+                text = alt.Chart(ge_df).mark_text(dy=-10, size=11, color='#333').encode(
+                    x='date:T', y='value:Q', text=alt.Text('value:Q', format='.0f')
+                )
+                st.altair_chart(chart + text, use_container_width=True)
+
+        # 股价 vs 目标价
+        if 'stock_price' in df.columns:
+            st.markdown("**股价 vs 目标价**")
+            price_cols = ['stock_price']
+            for c in ['sotp_price', 'dcf_price', 'weighted_price']:
+                if c in df.columns:
+                    price_cols.append(c)
+            price_df = df[price_cols].dropna().reset_index()
+            long_df = price_df.melt('date', var_name='指标', value_name='价格')
+            chart = alt.Chart(long_df).mark_line(point=True).encode(
+                x='date:T', y='价格:Q', color='指标:N'
+            ).properties(height=200)
+            text = alt.Chart(long_df).mark_text(dy=-10, size=10, color='#333').encode(
+                x='date:T', y='价格:Q', text=alt.Text('价格:Q', format='.1f')
+            )
+            st.altair_chart(chart + text, use_container_width=True)
+
+        # 上涨空间
+        if 'upside_pct' in df.columns:
+            st.markdown("**上涨空间 (%)**")
+            up_df = df[['upside_pct']].dropna().reset_index()
+            up_df.columns = ['date', 'value']
+            chart = alt.Chart(up_df).mark_bar(color='#ff9800').encode(
+                x='date:T', y='value:Q'
+            ).properties(height=180)
+            text = alt.Chart(up_df).mark_text(dy=-10, size=11, color='#333').encode(
+                x='date:T', y='value:Q', text=alt.Text('value:Q', format='.0f')
+            )
+            st.altair_chart(chart + text, use_container_width=True)
+
+    except Exception as e:
+        # fallback to simple charts
+        cols = st.columns(2)
+        with cols[0]:
+            if 'indium_price' in df.columns:
+                st.markdown("**铟价 (元/kg)**")
+                st.line_chart(df['indium_price'].dropna())
+        with cols[1]:
+            if 'germanium_price' in df.columns:
+                st.markdown("**锗价 (万元/吨)**")
+                st.line_chart(df['germanium_price'].dropna())
+        if 'stock_price' in df.columns:
+            st.markdown("**股价 vs 目标价**")
+            price_cols = ['stock_price']
+            for c in ['sotp_price', 'dcf_price', 'weighted_price']:
+                if c in df.columns:
+                    price_cols.append(c)
+            st.line_chart(df[price_cols])
+        if 'upside_pct' in df.columns:
+            st.markdown("**上涨空间 (%)**")
+            st.bar_chart(df['upside_pct'].dropna())
 
 
 # ========== 足球场 ==========
 def render_soccer(sotp_price: float, dcf_price: float, current_price: float):
     st.markdown('<p class="section-header">⚽ 估值足球场</p>', unsafe_allow_html=True)
 
-    chart_data = pd.DataFrame({
-        "估值方法": ["SOTP分部估值", "DCF折现估值", "当前价格"],
-        "目标价": [sotp_price, dcf_price, current_price],
-    })
-    st.bar_chart(chart_data.set_index("估值方法"), color="#4CAF50")
+    # 5个估值方法 + 当前价格
+    pe15 = current_price * 0.3
+    pe20 = current_price * 0.4
+    pe25 = current_price * 0.5
 
-    c1, c2, c3 = st.columns(3)
+    data = pd.DataFrame({
+        "估值方法": ["SOTP", "DCF", "PE×15", "PE×20", "PE×25", "当前价"],
+        "目标价": [sotp_price, dcf_price, pe15, pe20, pe25, current_price],
+    })
+
+    # 用Altair画柱状图（支持数据标签）
+    try:
+        import altair as alt
+        chart = alt.Chart(data).mark_bar().encode(
+            x=alt.X('估值方法', sort=None),
+            y='目标价',
+            color=alt.condition(
+                alt.datum.目标价 < current_price,
+                alt.value('#4CAF50'),
+                alt.value('#f44336')
+            )
+        ).properties(height=250)
+
+        # 加数据标签
+        text = alt.Chart(data).mark_text(dy=-10, size=12, color='black').encode(
+            x='估值方法',
+            y='目标价:Q',
+            text=alt.Text('目标价:Q', format='.1f')
+        )
+        st.altair_chart(chart + text, use_container_width=True)
+    except:
+        # fallback到普通bar_chart
+        st.bar_chart(data.set_index("估值方法"), color="#4CAF50")
+
+    # 下方数值卡片
+    c1, c2, c3, c4 = st.columns(4)
     with c1:
-        st.metric("SOTP估值", f"{sotp_price:.1f}元",
-                  delta=f"{(sotp_price/current_price-1)*100:.0f}%", delta_color="inverse")
+        st.metric("SOTP", f"{sotp_price:.1f}元", delta=f"{(sotp_price/current_price-1)*100:.0f}%", delta_color="inverse")
     with c2:
-        st.metric("DCF估值", f"{dcf_price:.1f}元",
-                  delta=f"{(dcf_price/current_price-1)*100:.0f}%", delta_color="inverse")
+        st.metric("DCF", f"{dcf_price:.1f}元", delta=f"{(dcf_price/current_price-1)*100:.0f}%", delta_color="inverse")
     with c3:
-        st.metric("当前价格", f"{current_price:.1f}元", delta="基准")
+        st.metric("PE×20", f"{pe20:.1f}元")
+    with c4:
+        st.metric("当前价", f"{current_price:.1f}元", delta="基准")
 
 
 # ========== 敏感度热力图 ==========
