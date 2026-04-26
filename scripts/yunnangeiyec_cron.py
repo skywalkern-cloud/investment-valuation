@@ -313,9 +313,8 @@ def main():
     for k, v in record.items():
         print(f"    {k}: {v}")
 
-    # 实际写入（通过subagent调用feishu_bitable_create_record）
-    print("\n  ✅ 记录已准备好，待写入Bitable...")
-    print(f"  Bitable: EXpqbt8RdaVNsaslViKclTu9nCe / tblAH85HuqZuyLSH")
+    # 写入本地历史JSON（趋势图用）
+    write_history_json(val if val else {})
 
     return record
 
@@ -323,3 +322,38 @@ def main():
 if __name__ == '__main__':
     result = main()
     print("\n=== 完成 ===")
+# ========== 额外：写入本地历史JSON ==========
+def write_history_json(record_values):
+    """写入历史数据到本地JSON"""
+    history_path = Path(__file__).parent.parent / 'data' / 'history.json'
+    history_path.parent.mkdir(parents=True, exist_ok=True)
+
+    history_rec = {
+        'date': datetime.now().strftime('%Y-%m-%d'),
+        'indium_price': record_values.get('indium_price'),
+        'germanium_price': record_values.get('germanium_price'),
+        'stock_price': record_values.get('stock_price'),
+        'sotp_price': record_values.get('sotp_price'),
+        'dcf_price': record_values.get('dcf_price'),
+        'weighted_price': record_values.get('weighted_price'),
+        'wacc': record_values.get('wacc', 6.45),
+        'upside_pct': record_values.get('upside', -94),
+        'pv_ratio': record_values.get('pv_ratio', 16),
+    }
+
+    existing = []
+    if history_path.exists():
+        with open(history_path, 'r', encoding='utf-8') as f:
+            existing = json.load(f)
+
+    dates = [r.get('date') for r in existing]
+    if history_rec['date'] in dates:
+        existing = [r for r in existing if r.get('date') != history_rec['date']]
+
+    existing.append(history_rec)
+
+    with open(history_path, 'w', encoding='utf-8') as f:
+        json.dump(existing, f, ensure_ascii=False, indent=2)
+
+    print(f"  ✅ 历史JSON已写入: {history_path}")
+    print(f"  今日记录: {history_rec['date']} 股价:{history_rec['stock_price']} 铟价:{history_rec['indium_price']}")
