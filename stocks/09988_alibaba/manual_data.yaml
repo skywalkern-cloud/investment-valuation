@@ -1,0 +1,70 @@
+# 阿里巴巴(09988) 手动数据
+# 更新日期: 2026-04-26
+
+date: "2026-04-26"
+
+market:
+  current_price: 131.8
+  currency: "HKD"
+  exchange: "HKEX"
+  last_updated: "2026-04-24"  # 最新收盘价
+
+commerce:
+  GMV: 80000
+  monetization_rate: 0.045
+  customer_management_revenue: 2800
+  direct_sales: 900
+  operating_profit: 850
+  operating_margin: 0.22
+
+cloud:
+  revenue: 1100
+  operating_profit: 220
+  operating_margin: 0.20
+  AI_revenue_ratio: 0.25
+
+international:
+  revenue: 800
+  operating_profit: 40
+  operating_margin: 0.05
+
+cainiao:
+  revenue: 400
+  operating_profit: 16
+  operating_margin: 0.04
+
+media:
+  revenue: 300
+  operating_profit: 6
+  operating_margin: 0.02
+
+innovation:
+  revenue: 200
+  operating_profit: 10
+  operating_margin: 0.05
+
+financials:
+  revenue: 5600
+  net_profit: 720
+  gaap_net_profit: 580
+  eps: 8.5
+  total_shares: 474.9
+  free_float_shares: 47.5
+  gross_margin: 0.42
+  operating_margin: 0.18
+  roe: 0.12
+
+holdings:
+  ant_group:
+    stake: 0.33
+    cost_per_share: 8.3
+    last_valuation: 3000
+  others:
+    equity_investments: 800
+
+fcf_projections:
+  - 2025: 620
+  - 2026: 680
+  - 2027: 750
+  - 2028: 830
+  - 2029: 920
