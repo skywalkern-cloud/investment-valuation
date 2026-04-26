@@ -276,6 +276,9 @@ def run_alibaba_valuation(
 def render_trend(df: pd.DataFrame, stock_code: str):
     st.markdown('<p class="section-header">📈 历史趋势</p>', unsafe_allow_html=True)
 
+    # DEBUG
+    st.caption(f"DEBUG: stock_code={stock_code}, df.shape={df.shape if not df.empty else 'empty'}")
+
     if df.empty:
         st.info("📋 暂无历史数据。每日08:00 cron任务运行后会写入数据。")
         st.caption("历史数据路径: data/history.json")
