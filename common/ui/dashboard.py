@@ -70,6 +70,7 @@ STOCK_REGISTRY = {
         "code": "09988",
         "market": "HK",
         "currency": "HKD",
+        "currency_symbol": "HK$",
         "symbol_sina": "hk09988",
         "shares": 47.5,   # 亿股
         "config_path": "stocks/09988_alibaba/config.yaml",
@@ -253,10 +254,12 @@ def run_alibaba_valuation(
         weighted_total = engine_prob.apply_event_weights(sotp_total, events)
         weighted_price = weighted_total / shares / hkd_rate
 
+    hkd_rate = 0.92
+
     return {
-        "sotp_price": sotp_result.get('目标价_区间_元', (0, 0))[1],  # 中枢
-        "sotp_min": sotp_result.get('目标价_区间_元', (0, 0))[0],
-        "sotp_max": sotp_result.get('目标价_区间_元', (0, 0))[1],
+        "sotp_price": sotp_result.get('目标价_区间_元', (0, 0))[1] / hkd_rate,  # 中枢→港元
+        "sotp_min": sotp_result.get('目标价_区间_元', (0, 0))[0] / hkd_rate,
+        "sotp_max": sotp_result.get('目标价_区间_元', (0, 0))[1] / hkd_rate,
         "dcf_price": dcf_price_hkd,
         "weighted_price": weighted_price,
         "wacc": wacc,
@@ -484,14 +487,16 @@ def render_sotp_detail(sotp_detail: Dict[str, Any], currency_symbol: str = "HK$"
 
 # ========== 历史数据加载 ==========
 @st.cache_data(ttl=3600)
-def load_history() -> pd.DataFrame:
+def load_history(stock_code: str = None) -> pd.DataFrame:
     """从 data/history.json 读取历史数据"""
     path = Path(__file__).parent.parent.parent / 'data' / 'history.json'
     if path.exists():
         with open(path, 'r', encoding='utf-8') as f:
             data = json.load(f)
+        if stock_code:
+            data = [r for r in data if r.get('stock_code') == stock_code]
         df = pd.DataFrame(data)
-        if 'date' in df.columns:
+        if 'date' in df.columns and len(df) > 0:
             df['date'] = pd.to_datetime(df['date'])
             df = df.sort_values('date').set_index('date')
         return df
@@ -592,7 +597,7 @@ def main():
         sotp_max = val.get("sotp_max", 0)
         dcf_price = val.get("dcf_price", 0)
         weighted_price = val.get("weighted_price", None)
-        df_history = pd.DataFrame()  # 阿里巴巴暂无历史数据
+        df_history = load_history("09988")  # 阿里巴巴历史数据
 
     # 渲染
     render_trend(df_history, selected)
