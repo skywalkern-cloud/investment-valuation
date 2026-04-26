@@ -70,5 +70,59 @@
     "wacc": 6.45,
     "upside_pct": -94,
     "pv_ratio": 16.1
+  },
+  {
+    "date": "2026-04-17",
+    "stock_price": 136.3,
+    "sotp_price": 142.0,
+    "dcf_price": 128.0,
+    "weighted_price": 138.0,
+    "upside_pct": 8,
+    "stock_code": "09988"
+  },
+  {
+    "date": "2026-04-20",
+    "stock_price": 137.0,
+    "sotp_price": 143.5,
+    "dcf_price": 129.5,
+    "weighted_price": 139.5,
+    "upside_pct": 5,
+    "stock_code": "09988"
+  },
+  {
+    "date": "2026-04-21",
+    "stock_price": 136.3,
+    "sotp_price": 144.0,
+    "dcf_price": 130.0,
+    "weighted_price": 140.0,
+    "upside_pct": 6,
+    "stock_code": "09988"
+  },
+  {
+    "date": "2026-04-22",
+    "stock_price": 131.5,
+    "sotp_price": 144.5,
+    "dcf_price": 130.5,
+    "weighted_price": 140.5,
+    "upside_pct": 10,
+    "stock_code": "09988"
+  },
+  {
+    "date": "2026-04-23",
+    "stock_price": 130.4,
+    "sotp_price": 145.0,
+    "dcf_price": 131.0,
+    "weighted_price": 141.0,
+    "upside_pct": 11,
+    "stock_code": "09988"
+  },
+  {
+    "date": "2026-04-24",
+    "stock_price": 131.8,
+    "sotp_price": 145.5,
+    "dcf_price": 131.5,
+    "weighted_price": 141.5,
+    "upside_pct": 10,
+    "stock_code": "09988"
   }
 ]
