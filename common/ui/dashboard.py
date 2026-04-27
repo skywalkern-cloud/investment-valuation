@@ -763,21 +763,24 @@ def main():
         st.caption(f"🔬 SOTP参数×DCF(WACC×TG) | 阿里云净利={sa.get('cloud_nm',0):.0f}亿 | 核心商业净利={sa.get('core_nm',0):.0f}亿")
 
     # 002428: 端到端敏感性分析展示
-    if selected == "002428" and val.get("sensitivity"):
-        st.markdown("---")
-        st.markdown("**🔬 端到端敏感性分析**")
-        sa = val["sensitivity"]
-        col1, col2, col3, col4 = st.columns(4)
-        with col1:
-            st.metric("SOTP区间", f"{sa['sotp_range'][0]:.1f}~{sa['sotp_range'][1]:.1f}元")
-        with col2:
-            st.metric("DCF区间", f"{sa['dcf_range'][0]:.1f}~{sa['dcf_range'][1]:.1f}元")
-        with col3:
-            st.metric("综合区间", f"{sa['combined_range'][0]:.1f}~{sa['combined_range'][1]:.1f}元")
-        with col4:
-            st.metric("推荐中枢", f"{sa['recommended_target']:.1f}元",
-                      delta=f"P10~P90: {sa['recommended_range'][0]:.1f}~{sa['recommended_range'][1]:.1f}元")
-        st.caption("🔬 SOTP参数×DCF(WACC×TG) 双维敏感性分析 | 配置: sensitivity_analysis")
+    if selected == "002428":
+        sa = val.get("sensitivity")
+        if sa:
+            st.markdown("---")
+            st.markdown("**🔬 端到端敏感性分析**")
+            col1, col2, col3, col4 = st.columns(4)
+            with col1:
+                st.metric("SOTP区间", f"{sa['sotp_range'][0]:.1f}~{sa['sotp_range'][1]:.1f}元")
+            with col2:
+                st.metric("DCF区间", f"{sa['dcf_range'][0]:.1f}~{sa['dcf_range'][1]:.1f}元")
+            with col3:
+                st.metric("综合区间", f"{sa['combined_range'][0]:.1f}~{sa['combined_range'][1]:.1f}元")
+            with col4:
+                st.metric("推荐中枢", f"{sa['recommended_target']:.1f}元",
+                          delta=f"P10~P90: {sa['recommended_range'][0]:.1f}~{sa['recommended_range'][1]:.1f}元")
+            st.caption("🔬 SOTP参数×DCF(WACC×TG) 双维敏感性分析 | 配置: sensitivity_analysis")
+        else:
+            st.warning("⚠️ 敏感性分析未计算（val.sensitivity=None），可能是SOTP运行异常")
 
     st.markdown("---")
     render_heatmap(
