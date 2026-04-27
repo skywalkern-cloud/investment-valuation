@@ -131,8 +131,7 @@ class ProbabilityWeightEngine:
                 # 例: prob=0.65, mag=1.4
                 #     = base × (1 + (1.4-1) × 0.65)
                 #     = base × 1.26  (上涨26%)
-                adjustment = (ev.magnitude - 1) * ev.probability
-                adjusted *= (1 + adjustment)
+                adjusted *= (1 + (ev.magnitude - 1) * ev.probability)
             else:
                 # 负向影响
                 # 例: prob=0.30, mag=0.85
