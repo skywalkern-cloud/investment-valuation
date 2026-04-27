@@ -559,7 +559,7 @@ def render_heatmap(fcf_proj: List[float], shares: float = 6.53, currency_symbol:
         row = []
         for w in wacc_vals:
             r = engine.compute_dcf(fcf_projections=fcf_proj, terminal_fcf=fcf_proj[-1], wacc=w, net_debt=0.0, shares=shares, terminal_growth=tg)['目标价_元']
-            row.append(r['目标价_元'])
+            row.append(r)
         rows.append(row)
 
     df = pd.DataFrame(rows, index=[f"TG={t*100:.0f}%" for t in tg_vals],
