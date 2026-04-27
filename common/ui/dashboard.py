@@ -72,7 +72,7 @@ STOCK_REGISTRY = {
         "currency": "HKD",
         "currency_symbol": "HK$",
         "symbol_sina": "hk09988",
-        "shares": 47.5,   # 亿股
+        "shares": 191.9,  # 亿H股 (akshare总股本)
         "config_path": "stocks/09988_alibaba/config.yaml",
         "manual_path": "stocks/09988_alibaba/manual_data.yaml",
         "model_path": "stocks/09988_alibaba/model.py",
