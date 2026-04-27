@@ -330,6 +330,7 @@ def write_history_json(record_values):
 
     history_rec = {
         'date': datetime.now().strftime('%Y-%m-%d'),
+        'stock_code': '002428',
         'indium_price': record_values.get('indium_price'),
         'germanium_price': record_values.get('germanium_price'),
         'stock_price': record_values.get('stock_price'),
