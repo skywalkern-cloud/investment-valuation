@@ -564,7 +564,7 @@ def render_heatmap(fcf_proj: List[float], shares: float = 6.53, currency_symbol:
 
     df = pd.DataFrame(rows, index=[f"TG={t*100:.0f}%" for t in tg_vals],
                       columns=[f"WACC={w*100:.0f}%" for w in wacc_vals])
-    st.dataframe(df.style.background_gradient(cmap="RdYlGn", axis=None), width='stretch')
+    st.dataframe(df)
     st.caption(f"行: 永续增长率(TG) | 列: WACC | 单位: {currency_symbol}")
 
 
