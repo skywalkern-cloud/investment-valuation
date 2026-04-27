@@ -764,7 +764,7 @@ def main():
             st.metric("综合区间", f"{sa['combined_range'][0]:.0f}~{sa['combined_range'][1]:.0f}HK$")
         with col4:
             st.metric("推荐中枢", f"{sa['recommended_target']:.0f}HK$",
-                      delta=f"区间: {sa['recommended_range'][0]:.0f}~{sa['recommended_range'][1]:.0f}HK$")
+                      delta=f"区间: {sa['recommended_range'][0]:.1f} ~ {sa['recommended_range'][1]:.1f} HK$")
         st.caption(f"🔬 SOTP参数×DCF(WACC×TG) | 阿里云净利={sa.get('cloud_nm',0):.0f}亿 | 核心商业净利={sa.get('core_nm',0):.0f}亿")
 
     # 002428: 端到端敏感性分析展示
@@ -782,8 +782,8 @@ def main():
                 st.metric("综合区间", f"{sa['combined_range'][0]:.1f}~{sa['combined_range'][1]:.1f}元")
             with col4:
                 st.metric("推荐中枢", f"{sa['recommended_target']:.1f}元",
-                          delta=f"P10~P90: {sa['recommended_range'][0]:.1f}~{sa['recommended_range'][1]:.1f}元")
-            st.caption("🔬 SOTP参数×DCF(WACC×TG) 双维敏感性分析 | 配置: sensitivity_analysis")
+                          delta=f"P10~P90: {sa['recommended_range'][0]:.1f} ~ {sa['recommended_range'][1]:.1f} 元")
+            st.caption("🔬 SOTP参数×DCF(WACC×TG) 双维敏感性分析")
         else:
             err = val.get("sensitivity_error", "未知")
             st.error(f"⚠️ 敏感性分析异常: {err[:300]}")
