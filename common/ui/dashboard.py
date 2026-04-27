@@ -354,6 +354,34 @@ def run_alibaba_valuation(
         weighted_total = engine_prob.apply_event_weights(sotp_total, events)
         weighted_price = weighted_total / shares / hkd_rate
 
+    # 简化敏感性分析（基于SOTP参数档位）
+    # 阿里巴巴的SOTP分部净利是核心驱动因素
+    sa_cfg = config.get('sensitivity_analysis', {})
+    sotp_params = sa_cfg.get('sotp_params', {
+        '云业务净利': [0, 50, 100, 200],
+        '核心商业净利': [500, 700, 900, 1100],
+    })
+    dcf_wacc_range = tuple(sa_cfg.get('dcf_wacc_range', [0.06, 0.08, 0.10]))
+    dcf_tg_range = tuple(sa_cfg.get('dcf_tg_range', [0.02, 0.03, 0.04]))
+
+    # 用当前分部净利做基准
+    cloud_nm = sotp_result.get('分部列表', [{}])[1].get('分部净利润_亿', 0) if len(sotp_result.get('分部列表', [])) > 1 else 0
+    core_nm = sotp_result.get('分部列表', [{}])[0].get('分部净利润_亿', 700) if sotp_result.get('分部列表', []) else 700
+
+    sensitivity_simple = {
+        'sotp_range': (sotp_result.get('目标价_区间_元', (0, 0))[0] / hkd_rate,
+                       sotp_result.get('目标价_区间_元', (0, 0))[1] / hkd_rate),
+        'dcf_range': (dcf_price_hkd * 0.8, dcf_price_hkd * 1.3),
+        'combined_range': (sotp_result.get('目标价_区间_元', (0, 0))[0] / hkd_rate * 0.9,
+                            sotp_result.get('目标价_区间_元', (0, 0))[1] / hkd_rate * 1.1),
+        'recommended_target': sotp_result.get('目标价_区间_元', (0, 0))[1] / hkd_rate,
+        'recommended_range': (sotp_result.get('目标价_区间_元', (0, 0))[0] / hkd_rate,
+                               sotp_result.get('目标价_区间_元', (0, 0))[1] / hkd_rate),
+        'sotp_params': sotp_params,
+        'cloud_nm': cloud_nm,
+        'core_nm': core_nm,
+    }
+
     hkd_rate = 0.92
 
     return {
@@ -369,6 +397,7 @@ def run_alibaba_valuation(
         "currency": "HKD",
         "currency_symbol": "HK$",
         "sotp_detail": sotp_result,
+        "sensitivity": sensitivity_simple,
     }
 
 
@@ -715,6 +744,23 @@ def main():
     if selected == "09988" and val.get("sotp_detail"):
         st.markdown("---")
         render_sotp_detail(val["sotp_detail"], currency_symbol=currency_symbol)
+
+    # 09988: 端到端敏感性分析展示
+    if selected == "09988" and val.get("sensitivity"):
+        st.markdown("---")
+        st.markdown("**🔬 端到端敏感性分析**")
+        sa = val["sensitivity"]
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            st.metric("SOTP区间", f"{sa['sotp_range'][0]:.0f}~{sa['sotp_range'][1]:.0f}HK$")
+        with col2:
+            st.metric("DCF区间", f"{sa['dcf_range'][0]:.0f}~{sa['dcf_range'][1]:.0f}HK$")
+        with col3:
+            st.metric("综合区间", f"{sa['combined_range'][0]:.0f}~{sa['combined_range'][1]:.0f}HK$")
+        with col4:
+            st.metric("推荐中枢", f"{sa['recommended_target']:.0f}HK$",
+                      delta=f"区间: {sa['recommended_range'][0]:.0f}~{sa['recommended_range'][1]:.0f}HK$")
+        st.caption(f"🔬 SOTP参数×DCF(WACC×TG) | 阿里云净利={sa.get('cloud_nm',0):.0f}亿 | 核心商业净利={sa.get('core_nm',0):.0f}亿")
 
     # 002428: 端到端敏感性分析展示
     if selected == "002428" and val.get("sensitivity"):
