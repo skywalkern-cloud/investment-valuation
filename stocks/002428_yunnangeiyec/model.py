@@ -26,6 +26,7 @@ from common.core.financial_foundation import FinancialFoundation
 from common.core.sotp_engine import SOTPEngine
 from common.core.discounting_engine import DiscountingEngine
 from common.core.probability_weight import ProbabilityWeightEngine
+from common.core.sensitivity_runner import run_sensitivity_analysis, SensitivityConfig
 from common.data.fetcher import DataFetcher
 
 
@@ -166,9 +167,12 @@ def run_full_model(show_details=True):
         risk_free = rf_fallback
 
     beta_val = config.get('methodology_notes', {}).get('wacc', {}).get('beta', {}).get('value', 1.2)
+    beta_last_updated = config.get('methodology_notes', {}).get('wacc', {}).get('beta', {}).get('last_updated', '')
     mp = config.get('methodology_notes', {}).get('wacc', {}).get('market_premium', 0.05)
-    wacc = engine.calc_wacc(risk_free_rate=risk_free, beta=beta_val, market_premium=mp)
-    print(f"  WACC: {wacc*100:.2f}% (Rf={risk_free*100:.1f}%, β={beta_val})")
+    wacc = engine.calc_wacc(risk_free_rate=risk_free, beta=beta_val, market_premium=mp, auto_refresh_beta=True)
+    if engine.config.beta_last_updated and engine.config.beta_last_updated != beta_last_updated:
+        print(f"  ⚡ Beta已自动刷新: {engine.config.beta:.2f} (更新于 {engine.config.beta_last_updated})")
+    print(f"  WACC: {wacc*100:.2f}% (Rf={risk_free*100:.1f}%, β={engine.config.beta:.2f})")
 
     # Terminal Growth
     tg_config = config.get('methodology_notes', {}).get('terminal_growth', {})
@@ -204,15 +208,17 @@ def run_full_model(show_details=True):
         shares=meta['total_shares'],
     )
     tg_vals = [f"{t*100:.0f}%" for t in (0.02, 0.03, 0.04)]
-    print(f"  TG=2%/3%/4%: {s['grid'][0][1]:.1f} / {s['grid'][1][1]:.1f} / {s['grid'][2][1]:.1f} 元")
+    g_mid = s["grid"][1][1]
+    print(f"  TG=2%/3%/4%: {s['grid'][0][1]} / {g_mid} / {s['grid'][2][1]} 元")
 
     # 5. 概率加权
     print()
     print("🎯 概率加权...")
     events_config = config.get('events', [])
+    weighted_cap = None
     if events_config:
         pw = ProbabilityWeightEngine.from_config_list(events_config)
-        base_cap = dcf_result['SOTP_市值_亿']
+        base_cap = dcf_result['股权价值_亿']
         weighted_cap = pw.apply(base_cap)
         bd = pw.breakdown(base_cap)
         print(f"  基础市值(DCF): {base_cap:.1f}亿 → 加权市值: {weighted_cap:.1f}亿 ({bd['upside_pct']:+.1f}%)")
@@ -221,6 +227,41 @@ def run_full_model(show_details=True):
             print(f"  {ev['name']}: {ev['probability']*100:.0f}%概率 {d}{abs(ev['magnitude']-1)*100:.0f}%")
         weighted_price = weighted_cap / meta['total_shares']
         print(f"  加权目标价: {weighted_price:.1f}元")
+
+    # 6. 端到端敏感性分析
+    print()
+    print("🔬 端到端敏感性分析...")
+    sa_cfg = config.get('sensitivity_analysis', {})
+    sotp_params = sa_cfg.get('sotp_params', {
+        '商品售价': [12000, 15000, 17500, 20000, 25000],
+        '良率': [0.80, 0.85, 0.88, 0.90],
+    })
+    dcf_wacc_range = tuple(sa_cfg.get('dcf_wacc_range', [0.06, 0.08, 0.10]))
+    dcf_tg_range = tuple(sa_cfg.get('dcf_tg_range', [0.02, 0.03, 0.04]))
+
+    cfg = SensitivityConfig(
+        sotp_params=sotp_params,
+        dcf_wacc_range=dcf_wacc_range,
+        dcf_tg_range=dcf_tg_range,
+        shares=meta['total_shares'],
+    )
+    try:
+        sa_result = run_sensitivity_analysis(
+            financials=ff,
+            manual_data=merged,
+            config=cfg,
+            sotp_engine=sotp,
+            dcf_engine=engine,
+            fcf_projections=fcf_projections,
+        )
+        print(f"  SOTP区间: {sa_result['sotp_range'][0]:.1f}~{sa_result['sotp_range'][1]:.1f}元")
+        print(f"  DCF区间: {sa_result['dcf_range'][0]:.1f}~{sa_result['dcf_range'][1]:.1f}元")
+        print(f"  综合区间: {sa_result['combined_range'][0]:.1f}~{sa_result['combined_range'][1]:.1f}元")
+        print(f"  推荐中枢: {sa_result['recommended_target']:.1f}元")
+        print(f"  推荐区间: {sa_result['recommended_range'][0]:.1f}~{sa_result['recommended_range'][1]:.1f}元")
+    except Exception as e:
+        print(f"  ⚠️ 敏感性分析失败: {e}")
+        sa_result = None
 
     # 6. 综合结论
     print()
