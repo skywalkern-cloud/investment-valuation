@@ -348,7 +348,6 @@ def run_alibaba_valuation(
     dcf_price_hkd = dcf_result['目标价_元'] / hkd_rate
 
     # Probability weighted (if events available)
-    config = load_stock_config("09988")
     events = config.get("events", [])
     weighted_price = sotp_result.get('目标价_中枢_元', sotp_result.get('目标价_区间_元', (0, 0))[1])
 
