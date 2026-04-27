@@ -95,60 +95,78 @@ class AlibabaSOTP:
         "蚂蚁集团": 500,    # 亿元 CNY (33%×1500亿估值, 保守)
     }
 
+    def __init__(
+        self,
+        core_pe_min: int = 18,
+        core_pe_max: int = 28,
+        cloud_pe_min: int = 30,
+        cloud_pe_max: int = 45,
+        intl_ps: float = 0.8,
+        other_value: float = 300.0,
+    ):
+        """可调节SOTP参数"""
+        self.CORE_PE_MIN = core_pe_min
+        self.CORE_PE_MAX = core_pe_max
+        self.CLOUD_PE_MIN = cloud_pe_min
+        self.CLOUD_PE_MAX = cloud_pe_max
+        self.INTL_PS = intl_ps
+        self.OTHER_VALUE_CNY = other_value
+
     def run(self, current_price: float = 95.0) -> Dict[str, Any]:
         """
         简化SOTP估值:
-        - 核心商业: PE×净利
-        - 云智能: PE×净利
-        - 国际商业: PS×营收 (亏损业务)
-        - 其他业务: 残值合计
+        - 核心商业: PE×净利 (可调PE区间)
+        - 云智能: PE×净利 (可调PE区间)
+        - 国际商业: PS×营收 (亏损业务, 可调PS)
+        - 其他业务: 固定残值 (可调)
         """
-        hkd_rate = 0.92  # 1 HKD = 0.92 CNY
+        hkd_rate = 0.92  # 1 HKD ≈ 0.92 CNY
+        shares = self.SHARES  # 亿H股
 
         divisions_result = []
         total_min = 0.0
         total_max = 0.0
         total_nm = 0.0
 
-        for name, nm, pe_min, pe_max, pe_base in self.DIVISIONS:
-            # 国际商业(PS) 和 其他业务: 不走PE, 单独处理
+        # PE maps: use instance-level (adjustable) values
+        pe_map = {
+            "核心商业": (self.CORE_PE_MIN, self.CORE_PE_MAX),
+            "云智能":   (self.CLOUD_PE_MIN, self.CLOUD_PE_MAX),
+        }
+
+        for name, nm, _, _, _ in self.DIVISIONS:
             if name in ("国际商业(PS)", "其他业务"):
-                continue
-            min_cap = nm * pe_min
-            max_cap = nm * pe_max
-            mid_cap = (min_cap + max_cap) / 2
+                continue  # handled separately below
+            pe_min_v, pe_max_v = pe_map.get(name, (10, 20))
+            min_cap = nm * pe_min_v
+            max_cap = nm * pe_max_v
+            divisions_result.append({
+                'name': name,
+                '分部净利润_亿': nm,
+                'PE区间': f"{pe_min_v}x~{pe_max_v}x",
+                'PE_base': (pe_min_v + pe_max_v) / 2,
+                '分部市值_亿_区间': (min_cap, max_cap),
+                '分部市值_亿_中枢': (min_cap + max_cap) / 2,
+            })
             total_min += min_cap
             total_max += max_cap
             total_nm += nm
 
-            divisions_result.append({
-                'name': name,
-                '分部净利润_亿': nm,
-                'PE区间': f"{pe_min}x~{pe_max}x",
-                'PE_base': pe_base,
-                '分部市值_亿_区间': (min_cap, max_cap),
-                '分部市值_亿_中枢': mid_cap,
-            })
-
-        # 国际商业: PS×营收 (亏损, 不适用PE)
-        intl_min = self.INTL_REV_CNY * self.INTL_PS
-        intl_max = intl_min  # PS 单倍数
-        intl_mid = intl_min
-        total_min += intl_min
-        total_max += intl_max
+        # 国际商业: PS×营收
+        intl_val = self.INTL_REV_CNY * self.INTL_PS
         divisions_result.append({
             'name': '国际商业',
             '分部净利润_亿': 0,
             'PE区间': f"PS={self.INTL_PS}x",
             'PE_base': self.INTL_PS,
-            '分部市值_亿_区间': (intl_min, intl_max),
-            '分部市值_亿_中枢': intl_mid,
+            '分部市值_亿_区间': (intl_val, intl_val),
+            '分部市值_亿_中枢': intl_val,
         })
+        total_min += intl_val
+        total_max += intl_val
 
         # 其他业务: 残值
         other_val = self.OTHER_VALUE_CNY
-        total_min += other_val
-        total_max += other_val
         divisions_result.append({
             'name': '其他(菜鸟/媒体/创新)',
             '分部净利润_亿': 0,
@@ -157,26 +175,22 @@ class AlibabaSOTP:
             '分部市值_亿_区间': (other_val, other_val),
             '分部市值_亿_中枢': other_val,
         })
+        total_min += other_val
+        total_max += other_val
 
-        # 加回控股权益
+        # 控股权益
         holdings_value = sum(self.HOLDINGS.values())
         total_min += holdings_value
         total_max += holdings_value
         total_mid = (total_min + total_max) / 2
 
-        # 转换为每股价格 (港元)
-        shares = self.SHARES  # 亿H股
-
         sotp_min_hkd = total_min / shares / hkd_rate
         sotp_max_hkd = total_max / shares / hkd_rate
-        sotp_mid_hkd = total_mid / shares / hkd_rate
+        sotp_mid_hkd = (sotp_min_hkd + sotp_max_hkd) / 2
 
         upside_min = (sotp_min_hkd / current_price - 1) * 100
         upside_max = (sotp_max_hkd / current_price - 1) * 100
         upside_mid = (sotp_mid_hkd / current_price - 1) * 100
-
-        # FCF projections (亿元)
-        fcf_projections = [700, 780, 870, 970, 1080]  # FY2026E~FY2030E (亿元CNY)
 
         return {
             '分部列表': divisions_result,
@@ -190,9 +204,8 @@ class AlibabaSOTP:
             '上涨空间_中枢_%': upside_mid,
             'shares': shares,
             'net_debt': 0,
-            'fcf_projections': fcf_projections,
+            'fcf_projections': [700, 780, 870, 970, 1080],
         }
-
 
 # ========== DCF Model ==========
 
@@ -260,6 +273,13 @@ def run_valuation(
     beta: float = 0.9,
     tg: float = 0.04,
     current_price: Optional[float] = None,
+    # 可调节SOTP参数
+    core_pe_min: int = 18,
+    core_pe_max: int = 28,
+    cloud_pe_min: int = 30,
+    cloud_pe_max: int = 45,
+    intl_ps: float = 0.8,
+    other_value: float = 300.0,
 ) -> Tuple[Dict[str, Any], Dict[str, Any]]:
     """
     运行完整阿里巴巴估值
@@ -274,7 +294,14 @@ def run_valuation(
         current_price = manual_data.get('market', {}).get('current_price', 95.0)
 
     # SOTP
-    sotp = AlibabaSOTP()
+    sotp = AlibabaSOTP(
+        core_pe_min=core_pe_min,
+        core_pe_max=core_pe_max,
+        cloud_pe_min=cloud_pe_min,
+        cloud_pe_max=cloud_pe_max,
+        intl_ps=intl_ps,
+        other_value=other_value,
+    )
     sotp_result = sotp.run(current_price=current_price)
     sotp_result['当前价_元'] = current_price
 
