@@ -328,8 +328,8 @@ def run_alibaba_valuation(
     wacc = calc_wacc_safe(rf, beta, market_premium=0.07,
                           cost_of_debt=cost_of_debt, tax_rate=tax_rate, debt_ratio=debt_ratio)
 
-    # FCF projections
-    fcf_proj = [620, 680, 750, 830, 920]
+    # FCF projections (FY2026E~FY2030E)
+    fcf_proj = [700, 780, 870, 970, 1080]
 
     # SOTP calculation (SourceFileLoader to handle digit-starting module name)
     model_path = repo_root / 'stocks' / '09988_alibaba' / 'model.py'
@@ -347,16 +347,23 @@ def run_alibaba_valuation(
     hkd_rate = 0.92
     dcf_price_hkd = dcf_result['目标价_元'] / hkd_rate
 
-    # Probability weighted (if events available)
+    # Probability weighted: additive expected value E[return] = Σ p_i×(m_i-1)
     config = load_stock_config("09988")
     events = config.get("events", [])
-    weighted_price = sotp_result.get('目标价_中枢_元', sotp_result.get('目标价_区间_元', (0, 0))[1])
+    sotp_mid_hkd = sotp_result.get('目标价_中枢_元', 0)  # sotp_result values are already in HKD
 
     if events:
-        sotp_total = sotp_result['总市值_亿_中枢']
-        engine_prob = DiscountingEngine()
-        weighted_total = engine_prob.apply_event_weights(sotp_total, events)
+        sotp_total_cny = sotp_result['总市值_亿_中枢']  # CNY亿
+        return_factor = 1.0
+        for ev in events:
+            if ev['impact'] == 'positive':
+                return_factor += ev['probability'] * (ev['magnitude'] - 1)
+            else:
+                return_factor -= ev['probability'] * (1 - ev['magnitude'])
+        weighted_total = sotp_total_cny * return_factor
         weighted_price = weighted_total / shares / hkd_rate
+    else:
+        weighted_price = sotp_mid_hkd
 
     # 简化敏感性分析（基于SOTP参数档位）
     # 阿里巴巴的SOTP分部净利是核心驱动因素
@@ -372,26 +379,25 @@ def run_alibaba_valuation(
     cloud_nm = sotp_result.get('分部列表', [{}])[1].get('分部净利润_亿', 0) if len(sotp_result.get('分部列表', [])) > 1 else 0
     core_nm = sotp_result.get('分部列表', [{}])[0].get('分部净利润_亿', 700) if sotp_result.get('分部列表', []) else 700
 
+    # sotp_result['目标价_*'] 已经是 HKD，无需再除 hkd_rate
+    sotp_min_hkd = sotp_result.get('目标价_区间_元', (0, 0))[0]
+    sotp_max_hkd = sotp_result.get('目标价_区间_元', (0, 0))[1]
+
     sensitivity_simple = {
-        'sotp_range': (sotp_result.get('目标价_区间_元', (0, 0))[0] / hkd_rate,
-                       sotp_result.get('目标价_区间_元', (0, 0))[1] / hkd_rate),
+        'sotp_range': (sotp_min_hkd, sotp_max_hkd),
         'dcf_range': (dcf_price_hkd * 0.8, dcf_price_hkd * 1.3),
-        'combined_range': (sotp_result.get('目标价_区间_元', (0, 0))[0] / hkd_rate * 0.9,
-                            sotp_result.get('目标价_区间_元', (0, 0))[1] / hkd_rate * 1.1),
-        'recommended_target': sotp_result.get('目标价_区间_元', (0, 0))[1] / hkd_rate,
-        'recommended_range': (sotp_result.get('目标价_区间_元', (0, 0))[0] / hkd_rate,
-                               sotp_result.get('目标价_区间_元', (0, 0))[1] / hkd_rate),
+        'combined_range': (sotp_min_hkd * 0.9, sotp_max_hkd * 1.1),
+        'recommended_target': sotp_mid_hkd,
+        'recommended_range': (sotp_min_hkd, sotp_max_hkd),
         'sotp_params': sotp_params,
         'cloud_nm': cloud_nm,
         'core_nm': core_nm,
     }
 
-    hkd_rate = 0.92
-
     return {
-        "sotp_price": sotp_result.get('目标价_区间_元', (0, 0))[1] / hkd_rate,  # 中枢→港元
-        "sotp_min": sotp_result.get('目标价_区间_元', (0, 0))[0] / hkd_rate,
-        "sotp_max": sotp_result.get('目标价_区间_元', (0, 0))[1] / hkd_rate,
+        "sotp_price": sotp_mid_hkd,      # 中枢 (HKD)
+        "sotp_min": sotp_min_hkd,          # 下限 (HKD)
+        "sotp_max": sotp_max_hkd,          # 上限 (HKD)
         "dcf_price": dcf_price_hkd,
         "weighted_price": weighted_price,
         "wacc": wacc,
