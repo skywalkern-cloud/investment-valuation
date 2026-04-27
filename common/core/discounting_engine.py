@@ -377,6 +377,9 @@ class DiscountingEngine:
     # dcf_sensitivity 别名，保留向后兼容
     def dcf_sensitivity(self, **kwargs) -> Dict[str, Any]:
         """dcf_sensitivity 别名，保留向后兼容"""
+        # 参数名映射: base_fcf → fcf_projections
+        if 'base_fcf' in kwargs:
+            kwargs['fcf_projections'] = kwargs.pop('base_fcf')
         return self.sensitivity_analysis(**kwargs)
 
     # ============================================================
