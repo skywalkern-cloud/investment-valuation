@@ -262,7 +262,7 @@ def run_yunnangeiyec_valuation(
         fcf = base * (1 + g) ** (i + 1) * 0.85
         fcf_proj.append(round(fcf, 3))
 
-    dcf_result = engine.dcf_fcf(fcf_proj, fcf_proj[-1], wacc, 0, shares, tg)
+    dcf_result = engine.compute_dcf(fcf_projections=fcf_proj, terminal_fcf=fcf_proj[-1], wacc=wacc, net_debt=0.0, shares=shares, terminal_growth=tg)
     dcf_price = dcf_result['目标价_元']
 
     # 端到端敏感性分析
@@ -341,7 +341,7 @@ def run_alibaba_valuation(
 
     # DCF
     engine = DiscountingEngine()
-    dcf_result = engine.dcf_fcf(fcf_proj, fcf_proj[-1], wacc, 0, shares, tg)
+    dcf_result = engine.compute_dcf(fcf_projections=fcf_proj, terminal_fcf=fcf_proj[-1], wacc=wacc, net_debt=0.0, shares=shares, terminal_growth=tg)
 
     # Convert DCF from CNY to HKD
     hkd_rate = 0.92
@@ -558,7 +558,7 @@ def render_heatmap(fcf_proj: List[float], shares: float = 6.53, currency_symbol:
     for tg in tg_vals:
         row = []
         for w in wacc_vals:
-            r = engine.dcf_fcf(fcf_proj, fcf_proj[-1], w, 0, shares, tg)
+            r = engine.compute_dcf(fcf_projections=fcf_proj, terminal_fcf=fcf_proj[-1], wacc=w, net_debt=0.0, shares=shares, terminal_growth=tg)['目标价_元']
             row.append(r['目标价_元'])
         rows.append(row)
 
