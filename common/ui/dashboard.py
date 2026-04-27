@@ -312,7 +312,9 @@ def run_yunnangeiyec_valuation(
 
 def run_alibaba_valuation(
     rf: float, beta: float, tg: float, current_price: float,
-    cost_of_debt: float = 0.045, tax_rate: float = 0.15, debt_ratio: float = 0.25
+    cost_of_debt: float = 0.045, tax_rate: float = 0.15, debt_ratio: float = 0.25,
+    core_pe_min: int = 18, core_pe_max: int = 28,
+    cloud_pe_max: int = 45, intl_ps: float = 0.8
 ) -> Dict[str, Any]:
     """阿里巴巴估值计算"""
     import sys
@@ -336,7 +338,10 @@ def run_alibaba_valuation(
     loader = importlib.machinery.SourceFileLoader('alibaba_model', str(model_path))
     alibaba_model = loader.load_module()
     AlibabaSOTP = alibaba_model.AlibabaSOTP
-    sotp_engine = AlibabaSOTP()
+    sotp_engine = AlibabaSOTP(
+        core_pe_min=core_pe_min, core_pe_max=core_pe_max,
+        cloud_pe_max=cloud_pe_max, intl_ps=intl_ps
+    )
     sotp_result = sotp_engine.run(current_price=current_price)
 
     # DCF
@@ -414,9 +419,6 @@ def run_alibaba_valuation(
 # ========== 趋势图 ==========
 def render_trend(df: pd.DataFrame, stock_code: str):
     st.markdown('<p class="section-header">📈 历史趋势</p>', unsafe_allow_html=True)
-
-    # DEBUG
-    st.caption(f"DEBUG: stock_code={stock_code}, df.shape={df.shape if not df.empty else 'empty'}")
 
     if df.empty:
         st.info("📋 暂无历史数据。每日08:00 cron任务运行后会写入数据。")
@@ -708,6 +710,17 @@ def main():
         elif wacc < 0.02:
             st.warning(f"⚠️ WACC偏低({wacc*100:.1f}%)")
 
+        # 阿里巴巴 SOTP 参数滑块
+        if selected == "09988":
+            st.markdown("---")
+            st.markdown("**📐 SOTP参数**")
+            core_pe_min = int(st.slider("核心商业PE下限", 10, 25, 18))
+            core_pe_max = int(st.slider("核心商业PE上限", 15, 35, 28))
+            cloud_pe_max = int(st.slider("云智能PE上限", 25, 55, 45))
+            intl_ps = st.slider("国际商业PS倍数", 0.3, 1.5, 0.8, 0.1, format="%.1f")
+        else:
+            core_pe_min, core_pe_max, cloud_pe_max, intl_ps = 18, 28, 45, 0.8
+
         st.markdown("---")
         st.markdown("**📂 数据文件**")
         st.markdown(f"`stocks/{selected}/`")
@@ -736,7 +749,9 @@ def main():
         df_history = load_history()
     else:
         val = run_alibaba_valuation(
-            rf=rf_val, beta=beta, tg=tg, current_price=current_price
+            rf=rf_val, beta=beta, tg=tg, current_price=current_price,
+            core_pe_min=core_pe_min, core_pe_max=core_pe_max,
+            cloud_pe_max=cloud_pe_max, intl_ps=intl_ps
         )
         sotp_price = val.get("sotp_price", 0)
         sotp_min = val.get("sotp_min", 0)
@@ -778,10 +793,6 @@ def main():
 
     # 002428: 端到端敏感性分析展示
     if selected == "002428":
-        # 🔥 紧急debug：打印val的所有key和sensitivity值
-        st.write(f"🔥 DEBUG val keys: {list(val.keys())}")
-        st.write(f"🔥 DEBUG sensitivity: {val.get('sensitivity')}")
-        st.write(f"🔥 DEBUG sensitivity_error: {repr(val.get('sensitivity_error'))}")
         sa = val.get("sensitivity")
         if sa:
             st.markdown("---")
@@ -810,7 +821,7 @@ def main():
     st.markdown("---")
 
     # 使用DCF价格作为目标价基准
-    target_price = dcf_price if dcf_price > 0 else sotp_price
+    target_price = weighted_price if weighted_price else (dcf_price if dcf_price > 0 else sotp_price)
     render_sentiment(target_price, current_price, currency_symbol=currency_symbol)
 
     st.markdown("---")
