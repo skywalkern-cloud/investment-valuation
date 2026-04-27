@@ -9,7 +9,8 @@
     "weighted_price": 6.4,
     "wacc": 6.45,
     "upside_pct": -94,
-    "pv_ratio": 16.2
+    "pv_ratio": 16.2,
+    "stock_code": "002428"
   },
   {
     "date": "2026-04-21",
@@ -21,7 +22,8 @@
     "weighted_price": 6.5,
     "wacc": 6.45,
     "upside_pct": -94,
-    "pv_ratio": 15.7
+    "pv_ratio": 15.7,
+    "stock_code": "002428"
   },
   {
     "date": "2026-04-22",
@@ -33,7 +35,8 @@
     "weighted_price": 6.3,
     "wacc": 6.45,
     "upside_pct": -94,
-    "pv_ratio": 15.5
+    "pv_ratio": 15.5,
+    "stock_code": "002428"
   },
   {
     "date": "2026-04-23",
@@ -45,7 +48,8 @@
     "weighted_price": 6.6,
     "wacc": 6.45,
     "upside_pct": -94,
-    "pv_ratio": 15.8
+    "pv_ratio": 15.8,
+    "stock_code": "002428"
   },
   {
     "date": "2026-04-24",
@@ -57,7 +61,8 @@
     "weighted_price": 6.4,
     "wacc": 6.45,
     "upside_pct": -94,
-    "pv_ratio": 15.9
+    "pv_ratio": 15.9,
+    "stock_code": "002428"
   },
   {
     "date": "2026-04-25",
@@ -69,7 +74,8 @@
     "weighted_price": 6.6,
     "wacc": 6.45,
     "upside_pct": -94,
-    "pv_ratio": 16.1
+    "pv_ratio": 16.1,
+    "stock_code": "002428"
   },
   {
     "date": "2026-04-17",
