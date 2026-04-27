@@ -1,59 +1,47 @@
-# 阿里巴巴(09988) 手动数据
-# 更新日期: 2026-04-26
-
-date: "2026-04-26"
-
+date: '2026-04-27'
 market:
   current_price: 131.8
-  currency: "HKD"
-  exchange: "HKEX"
-  last_updated: "2026-04-24"  # 最新收盘价
-
+  currency: HKD
+  exchange: HKEX
+  last_updated: '2026-04-24'
 commerce:
   GMV: 80000
   monetization_rate: 0.045
-  customer_management_revenue: 2800
+  customer_management_revenue: 3600
   direct_sales: 900
-  operating_profit: 850
-  operating_margin: 0.22
-
+  operating_profit: 900
+  operating_margin: 0.2
 cloud:
   revenue: 1100
   operating_profit: 220
-  operating_margin: 0.20
+  operating_margin: 0.2
   AI_revenue_ratio: 0.25
-
 international:
-  revenue: 800
-  operating_profit: 40
+  revenue: 850
+  operating_profit: 43
   operating_margin: 0.05
-
 cainiao:
   revenue: 400
   operating_profit: 16
   operating_margin: 0.04
-
 media:
   revenue: 300
   operating_profit: 6
   operating_margin: 0.02
-
 innovation:
   revenue: 200
   operating_profit: 10
   operating_margin: 0.05
-
 financials:
-  revenue: 5600
-  net_profit: 720
-  gaap_net_profit: 580
-  eps: 8.5
-  total_shares: 474.9
-  free_float_shares: 47.5
-  gross_margin: 0.42
-  operating_margin: 0.18
-  roe: 0.12
-
+  date: '2025-03-31'
+  revenue: 9600
+  net_profit: 800
+  eps: 4.17
+  bps: 54.0
+  total_shares: 191.9
+  gross_margin: 0.4
+  roa: 0.072
+  roe: 0.128
 holdings:
   ant_group:
     stake: 0.33
@@ -61,10 +49,9 @@ holdings:
     last_valuation: 3000
   others:
     equity_investments: 800
-
 fcf_projections:
-  - 2025: 620
-  - 2026: 680
-  - 2027: 750
-  - 2028: 830
-  - 2029: 920
+  2025E: 700
+  2026E: 780
+  2027E: 870
+  2028E: 970
+  2029E: 1080
