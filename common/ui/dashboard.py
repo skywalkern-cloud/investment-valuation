@@ -275,6 +275,7 @@ def run_yunnangeiyec_valuation(
     dcf_tg_range = tuple(sa_cfg.get('dcf_tg_range', [0.02, 0.03, 0.04]))
 
     sensitivity_result = None
+    sensitivity_error = None
     try:
         sensitivity_result = run_sensitivity_analysis(
             financials=ff,
@@ -289,8 +290,10 @@ def run_yunnangeiyec_valuation(
             dcf_engine=engine,
             fcf_projections=fcf_proj,
         )
-    except Exception:
-        pass  # 敏感性分析失败不影响主流程
+    except Exception as e:
+        import traceback
+        sensitivity_error = repr(e) + "\n" + traceback.format_exc()[:500]
+        sensitivity_result = None
 
     return {
         "sotp_price": sotp_price,
@@ -302,6 +305,7 @@ def run_yunnangeiyec_valuation(
         "currency": "CNY",
         "currency_symbol": "¥",
         "sensitivity": sensitivity_result,
+        "sensitivity_error": sensitivity_error,
         "sotp_result": sotp_result,
     }
 
@@ -780,7 +784,8 @@ def main():
                           delta=f"P10~P90: {sa['recommended_range'][0]:.1f}~{sa['recommended_range'][1]:.1f}元")
             st.caption("🔬 SOTP参数×DCF(WACC×TG) 双维敏感性分析 | 配置: sensitivity_analysis")
         else:
-            st.warning("⚠️ 敏感性分析未计算（val.sensitivity=None），可能是SOTP运行异常")
+            err = val.get("sensitivity_error", "未知")
+            st.error(f"⚠️ 敏感性分析异常: {err[:300]}")
 
     st.markdown("---")
     render_heatmap(
