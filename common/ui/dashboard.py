@@ -734,7 +734,7 @@ def main():
         sotp_max = val.get("sotp_max", 0)
         dcf_price = val.get("dcf_price", 0)
         weighted_price = val.get("weighted_price", None)
-        df_history = load_history("09988")  # 阿里巴巴历史数据
+        df_history = load_history(selected)  # 根据选择的股票加载对应历史数据
 
     # 渲染
     render_trend(df_history, selected)
