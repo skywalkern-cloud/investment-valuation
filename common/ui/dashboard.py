@@ -408,8 +408,6 @@ def run_alibaba_valuation(
 def render_trend(df: pd.DataFrame, stock_code: str):
     st.markdown('<p class="section-header">📈 历史趋势</p>', unsafe_allow_html=True)
 
-    # DEBUG
-    st.caption(f"DEBUG: stock_code={stock_code}, df.shape={df.shape if not df.empty else 'empty'}")
 
     if df.empty:
         st.info("📋 暂无历史数据。每日08:00 cron任务运行后会写入数据。")
@@ -432,7 +430,7 @@ def render_trend(df: pd.DataFrame, stock_code: str):
                     text_chart = alt.Chart(indium_df).mark_text(dy=-10, size=11, color='#333').encode(
                         x='date:T', y='value:Q', text=alt.Text('value:Q', format='.0f')
                     )
-                    st.altair_chart(chart + text_chart, use_container_width=True)
+                    st.altair_chart(chart + text_chart, width="stretch")
 
             with cols[1]:
                 if 'germanium_price' in df.columns:
@@ -445,7 +443,7 @@ def render_trend(df: pd.DataFrame, stock_code: str):
                     text_chart = alt.Chart(ge_df).mark_text(dy=-10, size=11, color='#333').encode(
                         x='date:T', y='value:Q', text=alt.Text('value:Q', format='.0f')
                     )
-                    st.altair_chart(chart + text_chart, use_container_width=True)
+                    st.altair_chart(chart + text_chart, width="stretch")
 
         # 股价 vs 目标价
         if 'stock_price' in df.columns:
@@ -459,7 +457,7 @@ def render_trend(df: pd.DataFrame, stock_code: str):
             chart = alt.Chart(long_df).mark_line(point=True).encode(
                 x='date:T', y='价格:Q', color='指标:N'
             ).properties(height=200)
-            st.altair_chart(chart, use_container_width=True)
+            st.altair_chart(chart, width="stretch")
 
         # 上涨空间
         if 'upside_pct' in df.columns:
@@ -469,7 +467,7 @@ def render_trend(df: pd.DataFrame, stock_code: str):
             chart = alt.Chart(up_df).mark_bar(color='#ff9800').encode(
                 x='date:T', y='value:Q'
             ).properties(height=180)
-            st.altair_chart(chart, use_container_width=True)
+            st.altair_chart(chart, width="stretch")
 
     except Exception as e:
         if stock_code == "002428":
@@ -526,7 +524,7 @@ def render_soccer(sotp_price: float, dcf_price: float, current_price: float,
             y='目标价:Q',
             text=alt.Text('目标价:Q', format='.1f')
         )
-        st.altair_chart(chart + text_chart, use_container_width=True)
+        st.altair_chart(chart + text_chart, width="stretch")
     except:
         st.bar_chart(data.set_index("估值方法"), color="#4CAF50")
 
@@ -602,7 +600,7 @@ def render_sotp_detail(sotp_detail: Dict[str, Any], currency_symbol: str = "HK$"
                 '市值(亿)': f"{min_cap:.0f}~{max_cap:.0f}",
             })
         df = pd.DataFrame(rows)
-        st.dataframe(df, use_container_width=True)
+        st.dataframe(df, width="stretch")
 
     holdings = sotp_detail.get('控股权益_亿', 0)
     total_mid = sotp_detail.get('总市值_亿_中枢', 0)
@@ -767,10 +765,6 @@ def main():
 
     # 002428: 端到端敏感性分析展示
     if selected == "002428":
-        # 🔥 紧急debug：打印val的所有key和sensitivity值
-        st.write(f"🔥 DEBUG val keys: {list(val.keys())}")
-        st.write(f"🔥 DEBUG sensitivity: {val.get('sensitivity')}")
-        st.write(f"🔥 DEBUG sensitivity_error: {repr(val.get('sensitivity_error'))}")
         sa = val.get("sensitivity")
         if sa:
             st.markdown("---")
