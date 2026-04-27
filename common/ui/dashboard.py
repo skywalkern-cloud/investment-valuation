@@ -312,7 +312,11 @@ def run_yunnangeiyec_valuation(
 
 def run_alibaba_valuation(
     rf: float, beta: float, tg: float, current_price: float,
-    cost_of_debt: float = 0.045, tax_rate: float = 0.15, debt_ratio: float = 0.25
+    cost_of_debt: float = 0.045, tax_rate: float = 0.15, debt_ratio: float = 0.25,
+    # 可调节SOTP参数
+    core_pe_min: int = 18, core_pe_max: int = 28,
+    cloud_pe_min: int = 30, cloud_pe_max: int = 45,
+    intl_ps: float = 0.8, other_value: float = 300.0,
 ) -> Dict[str, Any]:
     """阿里巴巴估值计算"""
     import sys
@@ -340,7 +344,11 @@ def run_alibaba_valuation(
     loader = importlib.machinery.SourceFileLoader('alibaba_model', str(model_path))
     alibaba_model = loader.load_module()
     AlibabaSOTP = alibaba_model.AlibabaSOTP
-    sotp_engine = AlibabaSOTP()
+    sotp_engine = AlibabaSOTP(
+        core_pe_min=core_pe_min, core_pe_max=core_pe_max,
+        cloud_pe_min=cloud_pe_min, cloud_pe_max=cloud_pe_max,
+        intl_ps=intl_ps, other_value=other_value,
+    )
     sotp_result = sotp_engine.run(current_price=current_price)
 
     # DCF
@@ -699,6 +707,29 @@ def main():
         elif wacc < 0.02:
             st.warning(f"⚠️ WACC偏低({wacc*100:.1f}%)")
 
+        # 09988: SOTP参数可调节滑块
+        if selected == "09988":
+            st.markdown("---")
+            st.markdown("**📐 SOTP参数**")
+            col1, col2 = st.columns(2)
+            with col1:
+                core_pe_min = int(st.slider("核心商业PE下限", 10, 25, 18, 1,
+                               help="核心电商/ marketplace PE 最低值"))
+                core_pe_max = int(st.slider("核心商业PE上限", 15, 35, 28, 1,
+                               help="核心电商/ marketplace PE 最高值"))
+            with col2:
+                cloud_pe_min = int(st.slider("云智能PE下限", 20, 40, 30, 1,
+                               help="阿里云/AI业务 PE 最低值"))
+                cloud_pe_max = int(st.slider("云智能PE上限", 25, 55, 45, 1,
+                               help="阿里云/AI业务 PE 最高值"))
+
+            intl_ps = st.slider("国际商业PS倍数", 0.3, 1.5, 0.8, 0.1,
+                               help="Lazada/Trendyol 等用 PS 估值（亏损业务）")
+            other_val = st.slider("其他业务残值(亿元)", 100, 600, 300, 50,
+                                 help="菜鸟/数字媒体/创新等残值估算")
+
+            st.caption(f"🔧 调整后目标价将实时变化 | 默认中枢: 184 HKD")
+
         st.markdown("---")
         st.markdown("**📂 数据文件**")
         st.markdown(f"`stocks/{selected}/`")
@@ -727,7 +758,10 @@ def main():
         df_history = load_history()
     else:
         val = run_alibaba_valuation(
-            rf=rf_val, beta=beta, tg=tg, current_price=current_price
+            rf=rf_val, beta=beta, tg=tg, current_price=current_price,
+            core_pe_min=core_pe_min, core_pe_max=core_pe_max,
+            cloud_pe_min=cloud_pe_min, cloud_pe_max=cloud_pe_max,
+            intl_ps=intl_ps, other_value=other_val,
         )
         sotp_price = val.get("sotp_price", 0)
         sotp_min = val.get("sotp_min", 0)
