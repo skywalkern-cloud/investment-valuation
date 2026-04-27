@@ -191,6 +191,7 @@ class DiscountingEngine:
         shares: float = 6.53,
         terminal_growth: Optional[float] = None,
         risk_free_rate: Optional[float] = None,
+        **kwargs,
     ) -> Dict[str, Any]:
         """
         执行FCF DCF估值 — Phase 2 P0
