@@ -321,6 +321,10 @@ def run_alibaba_valuation(
     repo_root = Path(__file__).parent.parent.parent
     sys.path.insert(0, str(repo_root))
 
+    # Load Alibaba config
+    with open(repo_root / 'stocks/09988_alibaba/config.yaml') as f:
+        config = yaml.safe_load(f)
+
     stock_info = STOCK_REGISTRY["09988"]
     shares = stock_info["shares"]
 
