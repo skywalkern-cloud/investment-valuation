@@ -782,7 +782,7 @@ def main():
                 st.metric("综合区间", f"{sa['combined_range'][0]:.1f}~{sa['combined_range'][1]:.1f}元")
             with col4:
                 st.metric("推荐中枢", f"{sa['recommended_target']:.1f}元",
-                          delta=f"P10~P90: {sa['recommended_range'][0]:.1f} ~ {sa['recommended_range'][1]:.1f} 元")
+                          delta="P10~P90: " + str(round(sa["recommended_range"][0], 1)) + " ~ " + str(round(sa["recommended_range"][1], 1)) + " 元")
             st.caption("🔬 SOTP参数×DCF(WACC×TG) 双维敏感性分析")
         else:
             err = val.get("sensitivity_error", "未知")
