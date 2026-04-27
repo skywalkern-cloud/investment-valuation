@@ -143,6 +143,71 @@ class ProbabilityWeightEngine:
 
         return adjusted
 
+    def adjust_valuation(
+        self,
+        base_value: float,
+        base_target_price: float,
+        shares: float = 6.53,
+        include_breakdown: bool = True,
+    ) -> Dict[str, Any]:
+        """
+        概率加权主入口 — Phase 2 P0
+
+        将"行业洞察"（关键事件主观概率）转化为估值调整，
+        返回完整的调整后结果（含目标价、上涨空间）。
+
+        Args:
+            base_value:         基础估值 (亿元市值)
+            base_target_price:  基础目标价 (元)
+            shares:             总股本 (亿股)
+            include_breakdown:  是否包含详细拆解
+
+        Returns:
+            {
+                'base_value_亿':       float,
+                'adjusted_value_亿':  float,
+                'upside_pct':         float,
+                'adjusted_target_元': float,
+                'events': [{...}, ...],
+                'probability_sum':    float,
+                'probability_sum_neg': float,
+                'multiplier':         float,
+                'warnings':           List[str],
+            }
+        """
+        warnings: List[str] = []
+
+        # 概率合理性校验
+        pos_sum = sum(e.probability for e in self.events if e.impact == 'positive')
+        neg_sum = sum(e.probability for e in self.events if e.impact == 'negative')
+        if pos_sum > 1.0:
+            warnings.append(f"正向概率总和({pos_sum:.2f})>1.0，可能过于乐观")
+        if neg_sum > 1.0:
+            warnings.append(f"负向概率总和({neg_sum:.2f})>1.0，风险可能重复计算")
+
+        adjusted_value = self.apply(base_value)
+        multiplier = adjusted_value / base_value if base_value > 0 else 1.0
+        upside_pct = (multiplier - 1) * 100
+        adjusted_target = adjusted_value / shares if shares > 0 else 0.0
+
+        result = {
+            'base_value_亿': round(base_value, 2),
+            'adjusted_value_亿': round(adjusted_value, 2),
+            'upside_pct': round(upside_pct, 1),
+            'adjusted_target_元': round(adjusted_target, 2),
+            'probability_sum': round(pos_sum, 2),
+            'probability_sum_neg': round(neg_sum, 2),
+            'multiplier': round(multiplier, 3),
+            'warnings': warnings,
+            'events': [],
+        }
+
+        if include_breakdown:
+            bd = self.breakdown(base_value)
+            result['events'] = bd['events']
+
+        return result
+
     def breakdown(self, base_value: float) -> Dict[str, Any]:
         """
         返回详细拆解
