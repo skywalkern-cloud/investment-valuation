@@ -265,6 +265,16 @@ def run_yunnangeiyec_valuation(
     dcf_result = engine.compute_dcf(fcf_projections=fcf_proj, terminal_fcf=fcf_proj[-1], wacc=wacc, net_debt=0.0, shares=shares, terminal_growth=tg)
     dcf_price = dcf_result['目标价_元']
 
+    # 概率加权
+    events = config.get('events', [])
+    weighted_price = None
+    if events:
+        from common.core.probability_weight import ProbabilityWeightEngine
+        pw = ProbabilityWeightEngine.from_config_list(events)
+        sotp_cap = sotp_result.get('SOTP_总市値_中枢_亿', 0)
+        weighted_cap = pw.apply(sotp_cap)
+        weighted_price = weighted_cap / shares  # CNY/股
+
     # 端到端敏感性分析
     sa_cfg = config.get('sensitivity_analysis', {})
     sa_cfg_params = sa_cfg.get('sotp_params', {
@@ -298,6 +308,7 @@ def run_yunnangeiyec_valuation(
     return {
         "sotp_price": sotp_price,
         "dcf_price": dcf_price,
+        "weighted_price": weighted_price,
         "wacc": wacc,
         "wacc_pct": wacc * 100,
         "current_price": current_price,
@@ -743,7 +754,7 @@ def main():
         )
         sotp_price = val["sotp_price"]
         dcf_price = val["dcf_price"]
-        weighted_price = None
+        weighted_price = val.get("weighted_price", None)
         sotp_min = None
         sotp_max = None
         df_history = load_history()
