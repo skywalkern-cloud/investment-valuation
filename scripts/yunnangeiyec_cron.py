@@ -256,9 +256,35 @@ def main():
         }
         print(f"  ⏳ Playwright不可用，使用manual数据: 铟价{commodity['indium_price']}/锗价{commodity['germanium_price']}")
 
-    # 3. 手动财务数据
-    print("\n📋 财务数据...")
-    manual_data = load_manual_data()
+    # 3. 自动财务数据 (akshare → 更新 manual_data.yaml)
+    print("\n📋 财务数据 (akshare自动获取)...")
+    import sys, os
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    try:
+        from common.core.financial_foundation import FinancialFoundation
+        ff = FinancialFoundation.from_akshare("002428")
+        if ff.revenue > 0:
+            # 更新 manual_data.yaml
+            manual_data = load_manual_data()
+            if 'financials' not in manual_data:
+                manual_data['financials'] = {}
+            manual_data['financials']['revenue'] = round(ff.revenue, 2)
+            manual_data['financials']['net_profit'] = round(ff.net_profit, 2)
+            manual_data['financials']['net_profit_attr'] = round(ff.net_profit_attr, 2)
+            manual_data['financials']['eps'] = round(ff.eps, 3)
+            manual_data['financials']['gross_margin'] = round(ff.gross_margin, 4) if ff.gross_margin else 0
+            manual_data['financials']['roe'] = round(ff.roe, 4) if ff.roe else 0
+            manual_data['financials']['date'] = ff.report_date
+            manual_data['date'] = ff.report_date[:10] if ff.report_date else datetime.now().strftime('%Y-%m-%d')
+            with open(os.path.join(os.path.dirname(__file__), '../stocks/002428_yunnangeiyec/manual_data.yaml'), 'w', encoding='utf-8') as f:
+                import yaml
+                yaml.dump(manual_data, f, allow_unicode=True, sort_keys=False, indent=2)
+            print(f"  ✅ akshare财报: 营收={ff.revenue:.2f}亿 净利={ff.net_profit:.3f}亿 EPS={ff.eps} 毛利率={ff.gross_margin*100:.1f}% ROE={ff.roe*100:.2f}%")
+        else:
+            raise ValueError("ff.revenue <= 0")
+    except Exception as e:
+        print(f"  ⚠️ akshare失败 ({e})，使用manual_data.yaml")
+        manual_data = load_manual_data()
     financials = manual_data.get('financials', {})
     print(f"  营收: {financials.get('revenue', 'N/A')}亿 | 净利润: {financials.get('net_profit', 'N/A')}亿")
 
