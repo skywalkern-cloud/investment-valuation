@@ -179,20 +179,118 @@ def run_yunnangeiyec_valuation(
     rf: float, beta: float, tg: float, current_price: float,
     cost_of_debt: float = 0.04, tax_rate: float = 0.15, debt_ratio: float = 0.3
 ) -> Dict[str, Any]:
-    """云南锗业估值计算"""
+    """云南锗业真实估值计算 — 调用真实 SOTP + DCF + 敏感性分析"""
+    import warnings
+    warnings.filterwarnings('ignore')
+
+    from common.core.sotp_engine import SOTPEngine
+    from common.core.discounting_engine import DiscountingEngine
+    from common.core.sensitivity_runner import run_sensitivity_analysis, SensitivityConfig
+    from common.core.financial_foundation import FinancialFoundation
+
+    repo_root = Path(__file__).parent.parent.parent
+
+    # 加载配置和数据
+    with open(repo_root / 'stocks/002428_yunnangeiyec/config.yaml') as f:
+        config = yaml.safe_load(f)
+    with open(repo_root / 'stocks/002428_yunnangeiyec/manual_data.yaml') as f:
+        manual_data = yaml.safe_load(f) or {}
+
+    meta = config['meta']
+    shares = meta['total_shares']
+
+    # FinancialFoundation（来自akshare，自动降级）
+    try:
+        ff = FinancialFoundation.from_akshare(meta['stock_code'])
+    except Exception:
+        ff = FinancialFoundation()
+        ff.revenue = manual_data.get('financials', {}).get('revenue', 0)
+        ff.net_profit = manual_data.get('financials', {}).get('net_profit', 0)
+
+    # SOTP Engine
+    sotp = SOTPEngine()
+    for plugin_cfg in config.get('plugins', []):
+        sotp.add_division(
+            plugin_type=plugin_cfg['type'],
+            name=plugin_cfg['name'],
+            weight=plugin_cfg.get('weight', 0.5),
+            pe_min=plugin_cfg.get('pe_min', 15),
+            pe_max=plugin_cfg.get('pe_max', 65),
+            pe_base=plugin_cfg.get('pe_base', 30),
+        )
+
+    # 构建 merged manual_data
+    auto_vars = {
+        'germanium_price': manual_data.get('germanium_price', 17500),
+        'indium_price': manual_data.get('indium_price', 4350),
+    }
+    merged = {}
+    for plugin_cfg in config.get('plugins', []):
+        name = plugin_cfg['name']
+        div_data = {}
+        div_data.update(plugin_cfg.get('defaults', {}))
+        if name in manual_data:
+            div_data.update(manual_data[name])
+        elif plugin_cfg['type'] in manual_data:
+            div_data.update(manual_data[plugin_cfg['type']])
+        for var_name, source_key in plugin_cfg.get('auto_variables', {}).items():
+            if source_key in auto_vars:
+                div_data[var_name] = auto_vars[source_key]
+        merged[name] = div_data
+
+    sotp_result = sotp.run(ff, {}, merged)
+    sotp_price = sotp_result['目标价_中枢_元']
+
+    # WACC + DCF
     engine = DiscountingEngine()
-    stock_info = STOCK_REGISTRY["002428"]
+    beta_val = config.get('methodology_notes', {}).get('wacc', {}).get('beta', {}).get('value', 1.2)
+    beta_last_updated = config.get('methodology_notes', {}).get('wacc', {}).get('beta', {}).get('last_updated', '')
+    mp = config.get('methodology_notes', {}).get('wacc', {}).get('market_premium', 0.05)
 
-    # WACC
-    wacc = calc_wacc_safe(rf, beta, market_premium=0.05,
-                          cost_of_debt=cost_of_debt, tax_rate=tax_rate, debt_ratio=debt_ratio)
+    # 自动刷新Beta（如过期）
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore')
+        wacc = engine.calc_wacc(risk_free_rate=rf, beta=beta_val,
+                                market_premium=mp, auto_refresh_beta=True)
 
-    # DCF
-    fcf_proj = stock_info["fcf_proj"]
-    dcf_result = engine.dcf_fcf(fcf_proj, fcf_proj[-1], wacc, 0, stock_info["shares"], tg)
+    # FCF 估算
+    sotp_nm = sotp_result.get('总净利润_亿', 0.655)
+    growth_rates = [0.20, 0.25, 0.30, 0.25, 0.20]
+    fcf_proj = []
+    base = sotp_nm
+    for i, g in enumerate(growth_rates):
+        fcf = base * (1 + g) ** (i + 1) * 0.85
+        fcf_proj.append(round(fcf, 3))
 
-    sotp_price = stock_info["sotp_price_fixed"]
+    dcf_result = engine.dcf_fcf(fcf_proj, fcf_proj[-1], wacc, 0, shares, tg)
     dcf_price = dcf_result['目标价_元']
+
+    # 端到端敏感性分析
+    sa_cfg = config.get('sensitivity_analysis', {})
+    sa_cfg_params = sa_cfg.get('sotp_params', {
+        '商品售价': [12000, 15000, 17500, 20000, 25000],
+        '良率': [0.80, 0.85, 0.88, 0.90],
+    })
+    dcf_wacc_range = tuple(sa_cfg.get('dcf_wacc_range', [0.06, 0.08, 0.10]))
+    dcf_tg_range = tuple(sa_cfg.get('dcf_tg_range', [0.02, 0.03, 0.04]))
+
+    sensitivity_result = None
+    try:
+        sensitivity_result = run_sensitivity_analysis(
+            financials=ff,
+            manual_data=merged,
+            config=SensitivityConfig(
+                sotp_params=sa_cfg_params,
+                dcf_wacc_range=dcf_wacc_range,
+                dcf_tg_range=dcf_tg_range,
+                shares=shares,
+            ),
+            sotp_engine=sotp,
+            dcf_engine=engine,
+            fcf_projections=fcf_proj,
+        )
+    except Exception:
+        pass  # 敏感性分析失败不影响主流程
 
     return {
         "sotp_price": sotp_price,
@@ -203,6 +301,8 @@ def run_yunnangeiyec_valuation(
         "fcf_proj": fcf_proj,
         "currency": "CNY",
         "currency_symbol": "¥",
+        "sensitivity": sensitivity_result,
+        "sotp_result": sotp_result,
     }
 
 
@@ -615,6 +715,23 @@ def main():
     if selected == "09988" and val.get("sotp_detail"):
         st.markdown("---")
         render_sotp_detail(val["sotp_detail"], currency_symbol=currency_symbol)
+
+    # 002428: 端到端敏感性分析展示
+    if selected == "002428" and val.get("sensitivity"):
+        st.markdown("---")
+        st.markdown("**🔬 端到端敏感性分析**")
+        sa = val["sensitivity"]
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            st.metric("SOTP区间", f"{sa['sotp_range'][0]:.1f}~{sa['sotp_range'][1]:.1f}元")
+        with col2:
+            st.metric("DCF区间", f"{sa['dcf_range'][0]:.1f}~{sa['dcf_range'][1]:.1f}元")
+        with col3:
+            st.metric("综合区间", f"{sa['combined_range'][0]:.1f}~{sa['combined_range'][1]:.1f}元")
+        with col4:
+            st.metric("推荐中枢", f"{sa['recommended_target']:.1f}元",
+                      delta=f"P10~P90: {sa['recommended_range'][0]:.1f}~{sa['recommended_range'][1]:.1f}元")
+        st.caption("🔬 SOTP参数×DCF(WACC×TG) 双维敏感性分析 | 配置: sensitivity_analysis")
 
     st.markdown("---")
     render_heatmap(
