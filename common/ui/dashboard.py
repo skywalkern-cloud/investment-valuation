@@ -768,6 +768,10 @@ def main():
 
     # 002428: 端到端敏感性分析展示
     if selected == "002428":
+        # 🔥 紧急debug：打印val的所有key和sensitivity值
+        st.write(f"🔥 DEBUG val keys: {list(val.keys())}")
+        st.write(f"🔥 DEBUG sensitivity: {val.get('sensitivity')}")
+        st.write(f"🔥 DEBUG sensitivity_error: {repr(val.get('sensitivity_error'))}")
         sa = val.get("sensitivity")
         if sa:
             st.markdown("---")
