@@ -495,8 +495,9 @@ def render_trend(df: pd.DataFrame, stock_code: str):
                         x='date:T', y=alt.Y('value:Q', title='上涨空间(%)'))
                 )
                 layers.append(
-                    alt.Chart(pos).mark_text(dy=-8, color='#4caf50', size=11).encode(
-                        x='date:T', y='value:Q', text=alt.Text('value:Q', format='.0f'))
+                    alt.Chart(pos).mark_text(dy=-8, size=11).encode(
+                        x='date:T', y='value:Q', text=alt.Text('value:Q', format='.0f'),
+                        color=alt.value('#4caf50'))
                 )
             if not neg.empty:
                 layers.append(
@@ -504,8 +505,9 @@ def render_trend(df: pd.DataFrame, stock_code: str):
                         x='date:T', y='value:Q')
                 )
                 layers.append(
-                    alt.Chart(neg).mark_text(dy=15, color='#f44336', size=11).encode(
-                        x='date:T', y='value:Q', text=alt.Text('value:Q', format='.0f'))
+                    alt.Chart(neg).mark_text(dy=15, size=11).encode(
+                        x='date:T', y='value:Q', text=alt.Text('value:Q', format='.0f'),
+                        color=alt.value('#f44336'))
                 )
             if layers:
                 st.altair_chart(alt.layer(*layers).properties(height=200), width="stretch")
