@@ -480,36 +480,54 @@ def render_trend(df: pd.DataFrame, stock_code: str):
         except Exception:
             st.line_chart(df[price_cols])
 
-    # 上涨空间（正=绿柱在上，负=红柱在下，两层独立渲染）
+    # 上涨空间（正=绿柱在上，负=红柱在下，只渲染有数据的层）
     if 'upside_pct' in df.columns:
         st.markdown("**上涨空间 (%)**")
         up_df = df[['upside_pct']].dropna().reset_index()
         up_df.columns = ['date', 'value']
 
-        # 正值（上涨）和负值（下跌）分开两层
         pos = up_df[up_df['value'] >= 0].copy()
         neg = up_df[up_df['value'] < 0].copy()
 
-        base = alt.Chart(up_df).mark_bar(color='#cccccc', opacity=0.3).encode(
-            x='date:T', y='value:Q'
-        )
+        layers = []
 
-        pos_bar = alt.Chart(pos).mark_bar(color='#4caf50').encode(
-            x='date:T', y=alt.Y('value:Q', title='上涨空间(%)')
-        )
-        pos_text = alt.Chart(pos).mark_text(dy=-8, color='#4caf50', fontSize=11).encode(
-            x='date:T', y='value:Q', text=alt.Text('value:Q', format='.0f')
-        )
+        # 背景参考线（仅当同时有正负时才加）
+        if not pos.empty and not neg.empty:
+            layers.append(
+                alt.Chart(up_df).mark_bar(color='#e0e0e0', opacity=0.4).encode(
+                    x='date:T', y='value:Q'
+                )
+            )
 
-        neg_bar = alt.Chart(neg).mark_bar(color='#f44336').encode(
-            x='date:T', y='value:Q'
-        )
-        neg_text = alt.Chart(neg).mark_text(dy=15, color='#f44336', fontSize=11).encode(
-            x='date:T', y='value:Q', text=alt.Text('value:Q', format='.0f')
-        )
+        if not pos.empty:
+            layers.append(
+                alt.Chart(pos).mark_bar(color='#4caf50').encode(
+                    x='date:T', y=alt.Y('value:Q', title='上涨空间(%)')
+                )
+            )
+            layers.append(
+                alt.Chart(pos).mark_text(dy=-8, color='#4caf50', fontSize=11).encode(
+                    x='date:T', y='value:Q', text=alt.Text('value:Q', format='.0f')
+                )
+            )
+
+        if not neg.empty:
+            layers.append(
+                alt.Chart(neg).mark_bar(color='#f44336').encode(
+                    x='date:T', y='value:Q'
+                )
+            )
+            layers.append(
+                alt.Chart(neg).mark_text(dy=15, color='#f44336', fontSize=11).encode(
+                    x='date:T', y='value:Q', text=alt.Text('value:Q', format='.0f')
+                )
+            )
 
         try:
-            st.altair_chart((base + pos_bar + pos_text + neg_bar + neg_text).properties(height=200), width="stretch")
+            if layers:
+                st.altair_chart(alt.layer(*layers).properties(height=200), width="stretch")
+            else:
+                st.bar_chart(up_df.set_index('date'))
         except Exception:
             st.bar_chart(up_df.set_index('date'))
 
