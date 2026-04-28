@@ -480,46 +480,33 @@ def render_trend(df: pd.DataFrame, stock_code: str):
         except Exception:
             st.line_chart(df[price_cols])
 
-    # 上涨空间（正=绿柱，负=红柱，颜色通过encode指定）
+    # 上涨空间：正值=绿柱，负值=红柱
     if 'upside_pct' in df.columns:
         st.markdown("**上涨空间 (%)**")
         up_df = df[['upside_pct']].dropna().reset_index()
         up_df.columns = ['date', 'value']
-
         pos = up_df[up_df['value'] >= 0].copy()
         neg = up_df[up_df['value'] < 0].copy()
-
-        layers = []
-
-        if not pos.empty:
-            layers.append(
-                alt.Chart(pos).mark_bar().encode(
-                    x='date:T',
-                    y=alt.Y('value:Q', title='上涨空间(%)'),
-                    color=alt.value('#4caf50')
-                )
-            )
-            layers.append(
-                alt.Chart(pos).mark_text(dy=-8, color=alt.value('#4caf50'), fontSize=11).encode(
-                    x='date:T', y='value:Q', text=alt.Text('value:Q', format='.0f')
-                )
-            )
-
-        if not neg.empty:
-            layers.append(
-                alt.Chart(neg).mark_bar().encode(
-                    x='date:T',
-                    y='value:Q',
-                    color=alt.value('#f44336')
-                )
-            )
-            layers.append(
-                alt.Chart(neg).mark_text(dy=15, color=alt.value('#f44336'), fontSize=11).encode(
-                    x='date:T', y='value:Q', text=alt.Text('value:Q', format='.0f')
-                )
-            )
-
         try:
+            layers = []
+            if not pos.empty:
+                layers.append(
+                    alt.Chart(pos).mark_bar(color='#4caf50').encode(
+                        x='date:T', y=alt.Y('value:Q', title='上涨空间(%)'))
+                )
+                layers.append(
+                    alt.Chart(pos).mark_text(dy=-8, color='#4caf50', size=11).encode(
+                        x='date:T', y='value:Q', text=alt.Text('value:Q', format='.0f'))
+                )
+            if not neg.empty:
+                layers.append(
+                    alt.Chart(neg).mark_bar(color='#f44336').encode(
+                        x='date:T', y='value:Q')
+                )
+                layers.append(
+                    alt.Chart(neg).mark_text(dy=15, color='#f44336', size=11).encode(
+                        x='date:T', y='value:Q', text=alt.Text('value:Q', format='.0f'))
+                )
             if layers:
                 st.altair_chart(alt.layer(*layers).properties(height=200), width="stretch")
             else:
