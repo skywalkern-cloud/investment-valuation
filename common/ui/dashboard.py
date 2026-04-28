@@ -436,87 +436,70 @@ def render_trend(df: pd.DataFrame, stock_code: str):
         st.caption("历史数据路径: data/history.json")
         return
 
-    try:
-        import altair as alt
+    import altair as alt
 
-        if stock_code == "002428":
-            cols = st.columns(2)
-            with cols[0]:
-                if 'indium_price' in df.columns:
-                    st.markdown("**铟价 (元/kg)**")
+    if stock_code == "002428":
+        cols = st.columns(2)
+        with cols[0]:
+            if 'indium_price' in df.columns:
+                st.markdown("**铟价 (元/kg)**")
+                try:
                     indium_df = df[['indium_price']].dropna().reset_index()
                     indium_df.columns = ['date', 'value']
-                    chart = alt.Chart(indium_df).mark_line(point=True).encode(
-                        x='date:T', y='value:Q'
-                    ).properties(height=200)
-                    text_chart = alt.Chart(indium_df).mark_text(dy=-10, size=11, color='#333').encode(
-                        x='date:T', y='value:Q', text=alt.Text('value:Q', format='.0f')
-                    )
+                    chart = alt.Chart(indium_df).mark_line(point=True).encode(x='date:T', y='value:Q').properties(height=200)
+                    text_chart = alt.Chart(indium_df).mark_text(dy=-10, size=11, color='#333').encode(x='date:T', y='value:Q', text=alt.Text('value:Q', format='.0f'))
                     st.altair_chart(chart + text_chart, width="stretch")
-
-            with cols[1]:
-                if 'germanium_price' in df.columns:
-                    st.markdown("**锗价 (万元/吨)**")
+                except Exception:
+                    st.line_chart(df['indium_price'].dropna())
+        with cols[1]:
+            if 'germanium_price' in df.columns:
+                st.markdown("**锗价 (万元/吨)**")
+                try:
                     ge_df = df[['germanium_price']].dropna().reset_index()
                     ge_df.columns = ['date', 'value']
-                    chart = alt.Chart(ge_df).mark_line(point=True).encode(
-                        x='date:T', y='value:Q'
-                    ).properties(height=200)
-                    text_chart = alt.Chart(ge_df).mark_text(dy=-10, size=11, color='#333').encode(
-                        x='date:T', y='value:Q', text=alt.Text('value:Q', format='.0f')
-                    )
+                    chart = alt.Chart(ge_df).mark_line(point=True).encode(x='date:T', y='value:Q').properties(height=200)
+                    text_chart = alt.Chart(ge_df).mark_text(dy=-10, size=11, color='#333').encode(x='date:T', y='value:Q', text=alt.Text('value:Q', format='.0f'))
                     st.altair_chart(chart + text_chart, width="stretch")
+                except Exception:
+                    st.line_chart(df['germanium_price'].dropna())
 
-        # 股价 vs 目标价
-        if 'stock_price' in df.columns:
-            st.markdown("**股价 vs 目标价**")
-            price_cols = ['stock_price']
-            for c in ['sotp_price', 'dcf_price', 'weighted_price']:
-                if c in df.columns:
-                    price_cols.append(c)
+    # 股价 vs 目标价
+    if 'stock_price' in df.columns:
+        st.markdown("**股价 vs 目标价**")
+        price_cols = ['stock_price']
+        for c in ['sotp_price', 'dcf_price', 'weighted_price']:
+            if c in df.columns:
+                price_cols.append(c)
+        try:
             price_df = df[price_cols].dropna().reset_index()
             long_df = price_df.melt('date', var_name='指标', value_name='价格')
             chart = alt.Chart(long_df).mark_line(point=True).encode(
                 x='date:T', y='价格:Q', color=alt.Color('指标:N', legend=alt.Legend(orient='bottom', title=None))
             ).properties(height=200)
             st.altair_chart(chart, width="stretch")
+        except Exception:
+            st.line_chart(df[price_cols])
 
-        # 上涨空间
-        if 'upside_pct' in df.columns:
-            st.markdown("**上涨空间 (%)**")
-            up_df = df[['upside_pct']].dropna().reset_index()
-            up_df.columns = ['date', 'value']
-            up_df['sign'] = up_df['value'].apply(lambda v: '上涨' if v >= 0 else '下跌')
+    # 上涨空间
+    if 'upside_pct' in df.columns:
+        st.markdown("**上涨空间 (%)**")
+        up_df = df[['upside_pct']].dropna().reset_index()
+        up_df.columns = ['date', 'value']
+        up_df['sign'] = up_df['value'].apply(lambda v: '上涨' if v >= 0 else '下跌')
+        try:
             chart = alt.Chart(up_df).mark_bar().encode(
                 x='date:T', y='value:Q',
                 color=alt.Color('sign:N', scale=alt.Scale(domain=['上涨', '下跌'], range=['#4caf50', '#f44336']), legend=None)
             )
             text_chart = alt.Chart(up_df).mark_text(
                 dy=-12, color=alt.Color('sign:N', scale=alt.Scale(domain=['上涨', '下跌'], range=['#4caf50', '#f44336'])), fontSize=11
-            ).encode(
-                x='date:T', y='value:Q',
-                text=alt.Text('value:Q', format='.0f')
-            )
+            ).encode(x='date:T', y='value:Q', text=alt.Text('value:Q', format='.0f'))
             st.altair_chart(chart + text_chart, width="stretch")
+        except Exception:
+            st.bar_chart(up_df.set_index('date'))
 
-    except Exception as e:
-        if stock_code == "002428":
-            cols = st.columns(2)
-            with cols[0]:
-                if 'indium_price' in df.columns:
-                    st.markdown("**铟价 (元/kg)**")
-                    st.line_chart(df['indium_price'].dropna())
-            with cols[1]:
-                if 'germanium_price' in df.columns:
-                    st.markdown("**锗价 (万元/吨)**")
-                    st.line_chart(df['germanium_price'].dropna())
-        if 'stock_price' in df.columns:
-            st.markdown("**股价 vs 目标价**")
-            price_cols = ['stock_price']
-            for c in ['sotp_price', 'dcf_price', 'weighted_price']:
-                if c in df.columns:
-                    price_cols.append(c)
-            st.line_chart(df[price_cols])
+
+
 
 
 # ========== 足球场 ==========
