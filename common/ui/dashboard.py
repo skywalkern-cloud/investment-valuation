@@ -485,14 +485,25 @@ def render_trend(df: pd.DataFrame, stock_code: str):
         st.markdown("**上涨空间 (%)**")
         up_df = df[['upside_pct']].dropna().reset_index()
         up_df.columns = ['date', 'value']
-        up_df['sign'] = up_df['value'].apply(lambda v: '上涨' if v >= 0 else '下跌')
+        up_df['is_up'] = up_df['value'] >= 0
         try:
             chart = alt.Chart(up_df).mark_bar().encode(
                 x='date:T', y='value:Q',
-                color=alt.Color('sign:N', scale=alt.Scale(domain=['上涨', '下跌'], range=['#4caf50', '#f44336']), legend=None)
+                color=alt.condition(
+                    alt.datum.is_up,
+                    alt.value('#4caf50'),  # 上涨=绿
+                    alt.value('#f44336')   # 下跌=红
+                ),
+                legend=None
             )
             text_chart = alt.Chart(up_df).mark_text(
-                dy=-12, color=alt.Color('sign:N', scale=alt.Scale(domain=['上涨', '下跌'], range=['#4caf50', '#f44336'])), fontSize=11
+                dy=alt.expr.if_(alt.datum.is_up, -12, 15),
+                color=alt.condition(
+                    alt.datum.is_up,
+                    alt.value('#4caf50'),
+                    alt.value('#f44336')
+                ),
+                fontSize=11
             ).encode(x='date:T', y='value:Q', text=alt.Text('value:Q', format='.0f'))
             st.altair_chart(chart + text_chart, width="stretch")
         except Exception:
