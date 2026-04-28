@@ -480,7 +480,7 @@ def render_trend(df: pd.DataFrame, stock_code: str):
         except Exception:
             st.line_chart(df[price_cols])
 
-    # 上涨空间（正=绿柱在上，负=红柱在下，只渲染有数据的层）
+    # 上涨空间（正=绿柱，负=红柱，颜色通过encode指定）
     if 'upside_pct' in df.columns:
         st.markdown("**上涨空间 (%)**")
         up_df = df[['upside_pct']].dropna().reset_index()
@@ -491,34 +491,30 @@ def render_trend(df: pd.DataFrame, stock_code: str):
 
         layers = []
 
-        # 背景参考线（仅当同时有正负时才加）
-        if not pos.empty and not neg.empty:
-            layers.append(
-                alt.Chart(up_df).mark_bar(color='#e0e0e0', opacity=0.4).encode(
-                    x='date:T', y='value:Q'
-                )
-            )
-
         if not pos.empty:
             layers.append(
-                alt.Chart(pos).mark_bar(color='#4caf50').encode(
-                    x='date:T', y=alt.Y('value:Q', title='上涨空间(%)')
+                alt.Chart(pos).mark_bar().encode(
+                    x='date:T',
+                    y=alt.Y('value:Q', title='上涨空间(%)'),
+                    color=alt.value('#4caf50')
                 )
             )
             layers.append(
-                alt.Chart(pos).mark_text(dy=-8, color='#4caf50', fontSize=11).encode(
+                alt.Chart(pos).mark_text(dy=-8, color=alt.value('#4caf50'), fontSize=11).encode(
                     x='date:T', y='value:Q', text=alt.Text('value:Q', format='.0f')
                 )
             )
 
         if not neg.empty:
             layers.append(
-                alt.Chart(neg).mark_bar(color='#f44336').encode(
-                    x='date:T', y='value:Q'
+                alt.Chart(neg).mark_bar().encode(
+                    x='date:T',
+                    y='value:Q',
+                    color=alt.value('#f44336')
                 )
             )
             layers.append(
-                alt.Chart(neg).mark_text(dy=15, color='#f44336', fontSize=11).encode(
+                alt.Chart(neg).mark_text(dy=15, color=alt.value('#f44336'), fontSize=11).encode(
                     x='date:T', y='value:Q', text=alt.Text('value:Q', format='.0f')
                 )
             )
