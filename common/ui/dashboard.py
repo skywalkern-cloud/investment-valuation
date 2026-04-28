@@ -325,7 +325,7 @@ def run_alibaba_valuation(
     rf: float, beta: float, tg: float, current_price: float,
     cost_of_debt: float = 0.045, tax_rate: float = 0.15, debt_ratio: float = 0.25,
     core_pe_min: int = 18, core_pe_max: int = 28,
-    cloud_pe_max: int = 45, intl_ps: float = 0.8
+    cloud_pe_min: int = 30, cloud_pe_max: int = 45, intl_ps: float = 0.8
 ) -> Dict[str, Any]:
     """阿里巴巴估值计算"""
     import sys
@@ -351,7 +351,7 @@ def run_alibaba_valuation(
     AlibabaSOTP = alibaba_model.AlibabaSOTP
     sotp_engine = AlibabaSOTP(
         core_pe_min=core_pe_min, core_pe_max=core_pe_max,
-        cloud_pe_max=cloud_pe_max, intl_ps=intl_ps
+        cloud_pe_min=cloud_pe_min, cloud_pe_max=cloud_pe_max, intl_ps=intl_ps
     )
     sotp_result = sotp_engine.run(current_price=current_price)
 
@@ -477,7 +477,7 @@ def render_trend(df: pd.DataFrame, stock_code: str):
             price_df = df[price_cols].dropna().reset_index()
             long_df = price_df.melt('date', var_name='指标', value_name='价格')
             chart = alt.Chart(long_df).mark_line(point=True).encode(
-                x='date:T', y='价格:Q', color='指标:N'
+                x='date:T', y='价格:Q', color=alt.Color('指标:N', legend=alt.Legend(orient='bottom', title=None))
             ).properties(height=200)
             st.altair_chart(chart, width="stretch")
 
@@ -486,10 +486,14 @@ def render_trend(df: pd.DataFrame, stock_code: str):
             st.markdown("**上涨空间 (%)**")
             up_df = df[['upside_pct']].dropna().reset_index()
             up_df.columns = ['date', 'value']
-            chart = alt.Chart(up_df).mark_bar(color='#ff9800').encode(
-                x='date:T', y='value:Q'
+            up_df['sign'] = up_df['value'].apply(lambda v: '上涨' if v >= 0 else '下跌')
+            chart = alt.Chart(up_df).mark_bar().encode(
+                x='date:T', y='value:Q',
+                color=alt.Color('sign:N', scale=alt.Scale(domain=['上涨', '下跌'], range=['#4caf50', '#f44336']), legend=None)
             )
-            text_chart = alt.Chart(up_df).mark_text(dy=-12, color='#333', fontSize=11).encode(
+            text_chart = alt.Chart(up_df).mark_text(
+                dy=-12, color=alt.Color('sign:N', scale=alt.Scale(domain=['上涨', '下跌'], range=['#4caf50', '#f44336'])), fontSize=11
+            ).encode(
                 x='date:T', y='value:Q',
                 text=alt.Text('value:Q', format='.0f')
             )
@@ -727,10 +731,11 @@ def main():
             st.markdown("**📐 SOTP参数**")
             core_pe_min = int(st.slider("核心商业PE下限", 10, 25, 18))
             core_pe_max = int(st.slider("核心商业PE上限", 15, 35, 28))
+            cloud_pe_min = int(st.slider("云智能PE下限", 20, 40, 30))
             cloud_pe_max = int(st.slider("云智能PE上限", 25, 55, 45))
             intl_ps = st.slider("国际商业PS倍数", 0.3, 1.5, 0.8, 0.1, format="%.1f")
         else:
-            core_pe_min, core_pe_max, cloud_pe_max, intl_ps = 18, 28, 45, 0.8
+            core_pe_min, core_pe_max, cloud_pe_min, cloud_pe_max, intl_ps = 18, 28, 30, 45, 0.8
 
         st.markdown("---")
         st.markdown("**📂 数据文件**")
@@ -762,7 +767,7 @@ def main():
         val = run_alibaba_valuation(
             rf=rf_val, beta=beta, tg=tg, current_price=current_price,
             core_pe_min=core_pe_min, core_pe_max=core_pe_max,
-            cloud_pe_max=cloud_pe_max, intl_ps=intl_ps
+            cloud_pe_min=cloud_pe_min, cloud_pe_max=cloud_pe_max, intl_ps=intl_ps
         )
         sotp_price = val.get("sotp_price", 0)
         sotp_min = val.get("sotp_min", 0)

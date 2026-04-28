@@ -99,12 +99,14 @@ class AlibabaSOTP:
         self,
         core_pe_min: int = 18,
         core_pe_max: int = 28,
+        cloud_pe_min: int = 30,
         cloud_pe_max: int = 45,
         intl_ps: float = 0.8,
     ):
         """可调节SOTP参数"""
         self.CORE_PE_MIN = core_pe_min
         self.CORE_PE_MAX = core_pe_max
+        self.CLOUD_PE_MIN = cloud_pe_min
         self.CLOUD_PE_MAX = cloud_pe_max
         self.INTL_PS = intl_ps
         # DIVISIONS uses class-level constants, update here
