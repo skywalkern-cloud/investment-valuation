@@ -480,32 +480,36 @@ def render_trend(df: pd.DataFrame, stock_code: str):
         except Exception:
             st.line_chart(df[price_cols])
 
-    # 上涨空间
+    # 上涨空间（正=绿柱在上，负=红柱在下，两层独立渲染）
     if 'upside_pct' in df.columns:
         st.markdown("**上涨空间 (%)**")
         up_df = df[['upside_pct']].dropna().reset_index()
         up_df.columns = ['date', 'value']
-        up_df['is_up'] = up_df['value'] >= 0
+
+        # 正值（上涨）和负值（下跌）分开两层
+        pos = up_df[up_df['value'] >= 0].copy()
+        neg = up_df[up_df['value'] < 0].copy()
+
+        base = alt.Chart(up_df).mark_bar(color='#cccccc', opacity=0.3).encode(
+            x='date:T', y='value:Q'
+        )
+
+        pos_bar = alt.Chart(pos).mark_bar(color='#4caf50').encode(
+            x='date:T', y=alt.Y('value:Q', title='上涨空间(%)')
+        )
+        pos_text = alt.Chart(pos).mark_text(dy=-8, color='#4caf50', fontSize=11).encode(
+            x='date:T', y='value:Q', text=alt.Text('value:Q', format='.0f')
+        )
+
+        neg_bar = alt.Chart(neg).mark_bar(color='#f44336').encode(
+            x='date:T', y='value:Q'
+        )
+        neg_text = alt.Chart(neg).mark_text(dy=15, color='#f44336', fontSize=11).encode(
+            x='date:T', y='value:Q', text=alt.Text('value:Q', format='.0f')
+        )
+
         try:
-            chart = alt.Chart(up_df).mark_bar().encode(
-                x='date:T', y='value:Q',
-                color=alt.condition(
-                    alt.datum.is_up,
-                    alt.value('#4caf50'),  # 上涨=绿
-                    alt.value('#f44336')   # 下跌=红
-                ),
-                legend=None
-            )
-            text_chart = alt.Chart(up_df).mark_text(
-                dy=alt.expr.if_(alt.datum.is_up, -12, 15),
-                color=alt.condition(
-                    alt.datum.is_up,
-                    alt.value('#4caf50'),
-                    alt.value('#f44336')
-                ),
-                fontSize=11
-            ).encode(x='date:T', y='value:Q', text=alt.Text('value:Q', format='.0f'))
-            st.altair_chart(chart + text_chart, width="stretch")
+            st.altair_chart((base + pos_bar + pos_text + neg_bar + neg_text).properties(height=200), width="stretch")
         except Exception:
             st.bar_chart(up_df.set_index('date'))
 
