@@ -293,27 +293,28 @@ def run_yunnangeiyec_valuation(
         weighted_cap = pw.apply(sotp_cap_base)
         weighted_price = weighted_cap / shares
 
-    # 敏感性分析
+    # 敏感性分析（仅当sotp_engine可用且有配置时才运行）
     sa_cfg = config.get('sensitivity_analysis', {})
     sensitivity_result = None
     sensitivity_error = None
-    try:
-        sensitivity_result = run_sensitivity_analysis(
-            financials=ff,
-            manual_data={},
-            config=SensitivityConfig(
-                sotp_params=sa_cfg.get('sotp_params', {}),
-                dcf_wacc_range=tuple(sa_cfg.get('dcf_wacc_range', [0.06, 0.08, 0.10])),
-                dcf_tg_range=tuple(sa_cfg.get('dcf_tg_range', [0.02, 0.03, 0.04])),
-                shares=shares,
-            ),
-            sotp_engine=None,
-            dcf_engine=engine,
-            fcf_projections=fcf_proj,
-        )
-    except Exception as e:
-        import traceback
-        sensitivity_error = repr(e) + "\n" + traceback.format_exc()[:500]
+    if sa_cfg:  # 有敏感性分析配置才运行
+        try:
+            sensitivity_result = run_sensitivity_analysis(
+                financials=ff,
+                manual_data={},
+                config=SensitivityConfig(
+                    sotp_params=sa_cfg.get('sotp_params', {}),
+                    dcf_wacc_range=tuple(sa_cfg.get('dcf_wacc_range', [0.06, 0.08, 0.10])),
+                    dcf_tg_range=tuple(sa_cfg.get('dcf_tg_range', [0.02, 0.03, 0.04])),
+                    shares=shares,
+                ),
+                sotp_engine=None,
+                dcf_engine=engine,
+                fcf_projections=fcf_proj,
+            )
+        except Exception as e:
+            import traceback
+            sensitivity_error = repr(e) + "\n" + traceback.format_exc()[:500]
 
     return {
         "sotp_price": sotp_price,
