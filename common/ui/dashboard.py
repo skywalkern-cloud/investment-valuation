@@ -846,8 +846,9 @@ def main():
                           delta=f"P10~P90: {sa['recommended_range'][0]:.1f}~{sa['recommended_range'][1]:.1f}元")
             st.caption("🔬 SOTP参数×DCF(WACC×TG) 双维敏感性分析 | 配置: sensitivity_analysis")
         else:
-            err = val.get("sensitivity_error", "未知")
-            st.error(f"⚠️ 敏感性分析异常: {err[:300]}")
+            err = val.get("sensitivity_error")
+            if err:
+                st.error(f"⚠️ 敏感性分析异常: {err[:300]}")
 
     st.markdown("---")
     render_heatmap(
