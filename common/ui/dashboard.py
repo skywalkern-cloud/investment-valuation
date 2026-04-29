@@ -189,14 +189,25 @@ def run_yunnangeiyec_valuation(
     rf: float, beta: float, tg: float, current_price: float,
     cost_of_debt: float = 0.04, tax_rate: float = 0.15, debt_ratio: float = 0.3
 ) -> Dict[str, Any]:
-    """云南锗业真实估值计算 — 调用真实 SOTP + DCF + 敏感性分析"""
+    """
+    云南锗业估值计算 — 使用直接计算的YunnangeiyecSOTP类
+
+    与旧SOTPEngine的区别：
+    - 旧: FablessPlugin，用"订单管道/BOM"算收入（65.7亿收入→15.8亿净利）
+    - 新: YunnangeiyecSOTP，用"产能×利用率×单价"算收入（39.75亿收入→9.54亿净利）
+
+    新公式（磷化铟衬底实际业务逻辑）：
+      收入 = 产能(15万片) × 利用率(100%) × 单价(2.65万/片) = 39.75亿
+      净利 = 收入 × 24% = 9.54亿
+      市值 = 净利 × PE(60-80x) = [572, 763]亿
+    """
     import warnings
     warnings.filterwarnings('ignore')
 
-    from common.core.sotp_engine import SOTPEngine
     from common.core.discounting_engine import DiscountingEngine
     from common.core.sensitivity_runner import run_sensitivity_analysis, SensitivityConfig
     from common.core.financial_foundation import FinancialFoundation
+    from stocks.002428_yunnangeiyec.model import YunnangeiyecSOTP
 
     repo_root = Path(__file__).parent.parent.parent
 
@@ -209,70 +220,57 @@ def run_yunnangeiyec_valuation(
     meta = config['meta']
     shares = meta['total_shares']
 
-    # FinancialFoundation（来自akshare，自动降级）
-    try:
-        ff = FinancialFoundation.from_akshare(meta['stock_code'])
-    except Exception:
-        ff = FinancialFoundation()
-        ff.revenue = manual_data.get('financials', {}).get('revenue', 0)
-        ff.net_profit = manual_data.get('financials', {}).get('net_profit', 0)
+    # 获取实时股价（优先腾讯API）
+    ff = FinancialFoundation.from_akshare(meta['stock_code'])
+    live_price = ff.price if ff.price > 0 else current_price
 
-    # SOTP Engine
-    sotp = SOTPEngine()
-    for plugin_cfg in config.get('plugins', []):
-        sotp.add_division(
-            plugin_type=plugin_cfg['type'],
-            name=plugin_cfg['name'],
-            weight=plugin_cfg.get('weight', 0.5),
-            pe_min=plugin_cfg.get('pe_min', 15),
-            pe_max=plugin_cfg.get('pe_max', 65),
-            pe_base=plugin_cfg.get('pe_base', 30),
-        )
+    # SOTP估值 — 使用YunnangeiyecSOTP直接计算（不走旧plugin系统）
+    sotp = YunnangeiyecSOTP()
+    sotp_result = sotp.calculate(live_price)
 
-    # 构建 merged manual_data
-    auto_vars = {
-        'germanium_price': manual_data.get('germanium_price', 17500),
-        'indium_price': manual_data.get('indium_price', 4350),
+    sotp_price_min = sotp_result['target_min']
+    sotp_price_max = sotp_result['target_max']
+    sotp_price = sotp_result['target_base']
+    sotp_cap_min = sotp_result['sotp_cap_min']
+    sotp_cap_max = sotp_result['sotp_cap_max']
+    sotp_cap_base = sotp_result['sotp_cap_base']
+    semi_nm = sotp_result['semi_net_profit']
+    trad_nm = sotp_result['trad_net_profit']
+    total_nm = semi_nm + trad_nm
+
+    # 兼容旧sotp_result格式（用于sensitivity runner）
+    sotp_result_legacy = {
+        '目标价_中枢_元': sotp_price,
+        '目标价_区间_元': (sotp_price_min, sotp_price_max),
+        'SOTP_总市値_中枢_亿': sotp_cap_base,
+        'SOTP_总市値_区间_亿': (sotp_cap_min, sotp_cap_max),
+        '总净利润_亿': total_nm,
+        '当前价_元': live_price,
+        '上涨空间_中枢_%': sotp_result['upside_base'],
+        '上涨空间_区间_%': (sotp_result['upside_min'], sotp_result['upside_max']),
+        '分部列表': [],
     }
-    merged = {}
-    for plugin_cfg in config.get('plugins', []):
-        name = plugin_cfg['name']
-        div_data = {}
-        div_data.update(plugin_cfg.get('defaults', {}))
-        if name in manual_data:
-            div_data.update(manual_data[name])
-        elif plugin_cfg['type'] in manual_data:
-            div_data.update(manual_data[plugin_cfg['type']])
-        for var_name, source_key in plugin_cfg.get('auto_variables', {}).items():
-            if source_key in auto_vars:
-                div_data[var_name] = auto_vars[source_key]
-        merged[name] = div_data
-
-    sotp_result = sotp.run(ff, {}, merged)
-    sotp_price = sotp_result['目标价_中枢_元']
 
     # WACC + DCF
     engine = DiscountingEngine()
-    beta_val = config.get('methodology_notes', {}).get('wacc', {}).get('beta', {}).get('value', 1.2)
-    beta_last_updated = config.get('methodology_notes', {}).get('wacc', {}).get('beta', {}).get('last_updated', '')
-    mp = config.get('methodology_notes', {}).get('wacc', {}).get('market_premium', 0.05)
-
-    # 自动刷新Beta（如过期）
     with warnings.catch_warnings():
         warnings.simplefilter('ignore')
-        wacc = engine.calc_wacc(risk_free_rate=rf, beta=beta_val,
-                                market_premium=mp, auto_refresh_beta=True)
+        wacc = engine.calc_wacc(risk_free_rate=rf, beta=beta,
+                                market_premium=0.05, auto_refresh_beta=True)
 
-    # FCF 估算
-    sotp_nm = sotp_result.get('总净利润_亿', 0.655)
+    # FCF估算（基于SOTP总净利）
     growth_rates = [0.20, 0.25, 0.30, 0.25, 0.20]
-    fcf_proj = []
-    base = sotp_nm
-    for i, g in enumerate(growth_rates):
-        fcf = base * (1 + g) ** (i + 1) * 0.85
-        fcf_proj.append(round(fcf, 3))
+    fcf_proj = [total_nm * (1 + g) ** (i + 1) * 0.85 for i, g in enumerate(growth_rates)]
+    fcf_proj = [round(x, 3) for x in fcf_proj]
 
-    dcf_result = engine.compute_dcf(fcf_projections=fcf_proj, terminal_fcf=fcf_proj[-1], wacc=wacc, net_debt=0.0, shares=shares, terminal_growth=tg)
+    dcf_result = engine.compute_dcf(
+        fcf_projections=fcf_proj,
+        terminal_fcf=fcf_proj[-1],
+        wacc=wacc,
+        net_debt=0.0,
+        shares=shares,
+        terminal_growth=tg,
+    )
     dcf_price = dcf_result['目标价_元']
 
     # 概率加权
@@ -281,53 +279,53 @@ def run_yunnangeiyec_valuation(
     if events:
         from common.core.probability_weight import ProbabilityWeightEngine
         pw = ProbabilityWeightEngine.from_config_list(events)
-        sotp_cap = sotp_result.get('SOTP_总市値_中枢_亿', 0)
-        weighted_cap = pw.apply(sotp_cap)
-        weighted_price = weighted_cap / shares  # CNY/股
+        weighted_cap = pw.apply(sotp_cap_base)
+        weighted_price = weighted_cap / shares
 
-    # 端到端敏感性分析
+    # 敏感性分析
     sa_cfg = config.get('sensitivity_analysis', {})
-    sa_cfg_params = sa_cfg.get('sotp_params', {
-        '商品售价': [12000, 15000, 17500, 20000, 25000],
-        '良率': [0.80, 0.85, 0.88, 0.90],
-    })
-    dcf_wacc_range = tuple(sa_cfg.get('dcf_wacc_range', [0.06, 0.08, 0.10]))
-    dcf_tg_range = tuple(sa_cfg.get('dcf_tg_range', [0.02, 0.03, 0.04]))
-
     sensitivity_result = None
     sensitivity_error = None
     try:
         sensitivity_result = run_sensitivity_analysis(
             financials=ff,
-            manual_data=merged,
+            manual_data={},
             config=SensitivityConfig(
-                sotp_params=sa_cfg_params,
-                dcf_wacc_range=dcf_wacc_range,
-                dcf_tg_range=dcf_tg_range,
+                sotp_params=sa_cfg.get('sotp_params', {}),
+                dcf_wacc_range=tuple(sa_cfg.get('dcf_wacc_range', [0.06, 0.08, 0.10])),
+                dcf_tg_range=tuple(sa_cfg.get('dcf_tg_range', [0.02, 0.03, 0.04])),
                 shares=shares,
             ),
-            sotp_engine=sotp,
+            sotp_engine=None,
             dcf_engine=engine,
             fcf_projections=fcf_proj,
         )
     except Exception as e:
         import traceback
         sensitivity_error = repr(e) + "\n" + traceback.format_exc()[:500]
-        sensitivity_result = None
 
     return {
         "sotp_price": sotp_price,
+        "sotp_price_min": sotp_price_min,
+        "sotp_price_max": sotp_price_max,
         "dcf_price": dcf_price,
         "weighted_price": weighted_price,
         "wacc": wacc,
         "wacc_pct": wacc * 100,
-        "current_price": current_price,
+        "current_price": live_price,
         "fcf_proj": fcf_proj,
         "currency": "CNY",
         "currency_symbol": "¥",
         "sensitivity": sensitivity_result,
         "sensitivity_error": sensitivity_error,
-        "sotp_result": sotp_result,
+        "sotp_result": sotp_result_legacy,
+        # 额外诊断信息
+        "semi_nm": semi_nm,
+        "trad_nm": trad_nm,
+        "total_nm": total_nm,
+        "inp_revenue": sotp_result['semi_revenue'],
+        "inp_price": 2.65,
+        "capacity": 15,
     }
 
 
