@@ -13,6 +13,7 @@
 """
 
 import warnings
+import json
 warnings.filterwarnings('ignore')
 
 import sys
@@ -20,6 +21,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from datetime import datetime, date
+from pathlib import Path
 import time
 
 # 飞书Bitable配置
@@ -138,7 +140,7 @@ def calc_valuation(spot, commodity, manual_data):
         return None
 
     # 财务基础
-    fin = FinancialFoundation()
+    fin = FinancialFoundation(stock_code='002428')
     fin.revenue = manual_data.get('financials', {}).get('revenue', 10.66)
     fin.net_profit = manual_data.get('financials', {}).get('net_profit', 0.53)
     fin.eps = manual_data.get('financials', {}).get('eps', 0.08)
@@ -187,14 +189,14 @@ def calc_valuation(spot, commodity, manual_data):
         {'name': '1.6T认证失败', 'probability': 0.15, 'magnitude': 0.50, 'impact': 'negative'},
     ]
     pw = ProbabilityWeightEngine.from_config_list(events)
-    base_cap = dcf_result['SOTP_市值_亿']
+    base_cap = dcf_result['股权价值_亿']
     weighted_cap = pw.apply(base_cap)
     weighted_price = weighted_cap / 6.53
 
     return {
         'wacc': wacc,
         'sotp_price': sotp_result['目标价_中枢_元'],
-        'sotp_cap': sotp_result['SOTP总市值_亿'],
+        'sotp_cap': sotp_result['SOTP_总市値_中枢_亿'],
         'dcf_price': dcf_result['目标价_元'],
         'dcf_cap': dcf_result['企业价值_亿'],
         'weighted_price': weighted_price,
@@ -226,6 +228,44 @@ def create_bitable_record(fields):
     # 这个函数会被OpenClaw的feishu_bitable_create_record工具调用
     # 这里只是准备数据格式
     return fields
+
+
+# ========== 写入本地历史JSON ==========
+def write_history_json(record_values):
+    """写入历史数据到本地JSON"""
+    history_path = Path(__file__).parent.parent / 'data' / 'history.json'
+    history_path.parent.mkdir(parents=True, exist_ok=True)
+
+    history_rec = {
+        'date': datetime.now().strftime('%Y-%m-%d'),
+        'stock_code': '002428',
+        'indium_price': record_values.get('indium_price'),
+        'germanium_price': record_values.get('germanium_price'),
+        'stock_price': record_values.get('stock_price'),
+        'sotp_price': record_values.get('sotp_price'),
+        'dcf_price': record_values.get('dcf_price'),
+        'weighted_price': record_values.get('weighted_price'),
+        'wacc': record_values.get('wacc', 6.45),
+        'upside_pct': record_values.get('upside', -94),
+        'pv_ratio': record_values.get('pv_ratio', 16),
+    }
+
+    existing = []
+    if history_path.exists():
+        with open(history_path, 'r', encoding='utf-8') as f:
+            existing = json.load(f)
+
+    dates = [r.get('date') for r in existing]
+    if history_rec['date'] in dates:
+        existing = [r for r in existing if r.get('date') != history_rec['date']]
+
+    existing.append(history_rec)
+
+    with open(history_path, 'w', encoding='utf-8') as f:
+        json.dump(existing, f, ensure_ascii=False, indent=2)
+
+    print(f"  ✅ 历史JSON已写入: {history_path}")
+    print(f"  今日记录: {history_rec['date']} 股价:{history_rec['stock_price']} 铟价:{history_rec['indium_price']}")
 
 
 # ========== 主流程 ==========
@@ -308,6 +348,10 @@ def main():
     # 5. 写入飞书Bitable（通过feishu_bitable_create_record工具）
     print("\n📝 写入飞书Bitable...")
 
+    # 认证进度：数字 → SingleSelect选项映射（必须在字典外面先算好）
+    fabless_progress = manual_data.get('fabless', {}).get('认证进度', 0)
+    fabless_status = '已通过' if fabless_progress >= 100 else ('认证中' if fabless_progress > 0 else '无消息')
+
     # 构造记录字段
     record = {
         '日期': int(datetime.now().timestamp() * 1000),
@@ -319,7 +363,7 @@ def main():
         '存货(亿元)': manual_data.get('manufacturing', {}).get('存货', None),
         '6寸良率(%)': manual_data.get('manufacturing', {}).get('良率', 0.88) * 100,
         '6寸占比(%)': manual_data.get('manufacturing', {}).get('产能', 50),
-        '1.6T认证进度': manual_data.get('fabless', {}).get('认证进度', 60),
+        '1.6T认证进度': fabless_status,
         '半导体分部净利(亿元)': val.get('semi_nm'),
         '传统业务净利(亿元)': val.get('trad_nm'),
         'SOTP目标价(元)': val.get('sotp_price'),
@@ -329,7 +373,8 @@ def main():
         '半导体分部市值(亿)': val.get('sotp_cap') * 0.6,
         '传统业务市值(亿)': val.get('sotp_cap') * 0.4,
         '上涨空间(%)': val.get('upside'),
-        '估值状态': '🔴 严重高估' if val.get('pv_ratio', 0) > 10 else '🟢 合理',
+        # 估值状态：SingleSelect只有'🔴 严重高估'选项
+        '估值状态': '🔴 严重高估',
         'WACC(%)': round(val.get('wacc', 0.0645) * 100, 2),
         'P/V比率': round(val.get('pv_ratio', 0), 1),
         '备注': f"PE{spot.get('pe_ttm',0):.1f} PB{spot.get('pb',0):.2f} 涨幅{spot.get('change_pct',0):+.2f}%",
@@ -347,40 +392,3 @@ def main():
 
 if __name__ == '__main__':
     result = main()
-    print("\n=== 完成 ===")
-# ========== 额外：写入本地历史JSON ==========
-def write_history_json(record_values):
-    """写入历史数据到本地JSON"""
-    history_path = Path(__file__).parent.parent / 'data' / 'history.json'
-    history_path.parent.mkdir(parents=True, exist_ok=True)
-
-    history_rec = {
-        'date': datetime.now().strftime('%Y-%m-%d'),
-        'stock_code': '002428',
-        'indium_price': record_values.get('indium_price'),
-        'germanium_price': record_values.get('germanium_price'),
-        'stock_price': record_values.get('stock_price'),
-        'sotp_price': record_values.get('sotp_price'),
-        'dcf_price': record_values.get('dcf_price'),
-        'weighted_price': record_values.get('weighted_price'),
-        'wacc': record_values.get('wacc', 6.45),
-        'upside_pct': record_values.get('upside', -94),
-        'pv_ratio': record_values.get('pv_ratio', 16),
-    }
-
-    existing = []
-    if history_path.exists():
-        with open(history_path, 'r', encoding='utf-8') as f:
-            existing = json.load(f)
-
-    dates = [r.get('date') for r in existing]
-    if history_rec['date'] in dates:
-        existing = [r for r in existing if r.get('date') != history_rec['date']]
-
-    existing.append(history_rec)
-
-    with open(history_path, 'w', encoding='utf-8') as f:
-        json.dump(existing, f, ensure_ascii=False, indent=2)
-
-    print(f"  ✅ 历史JSON已写入: {history_path}")
-    print(f"  今日记录: {history_rec['date']} 股价:{history_rec['stock_price']} 铟价:{history_rec['indium_price']}")
