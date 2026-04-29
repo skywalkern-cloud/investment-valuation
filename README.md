@@ -103,3 +103,5 @@ DataFetcher (云南锗业002428):
 ## 设计文档
 
 详见 [飞书文档 v1.2](https://feishu.cn/docx/NgyUdw4HTodA9IxDUhic9Kn0nGc)
+
+> Dashboard auto-update: 2026-04-30 00:00:51
