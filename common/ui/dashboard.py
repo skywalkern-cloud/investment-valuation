@@ -106,7 +106,17 @@ def load_manual_data(stock_code: str) -> Dict[str, Any]:
 # ========== Price Fetching ==========
 @st.cache_data(ttl=300)
 def get_price_002428() -> float:
-    """获取云南锗业A股实时股价"""
+    """获取云南锗业A股实时股价（腾讯行情API，优先）"""
+    # 优先：腾讯行情API（不走代理，稳定）
+    try:
+        sys.path.insert(0, '/Users/vincentnie/.openclaw/workspace-market-insight/scripts')
+        from data.stock_api import get_a_stock_quote
+        quotes = get_a_stock_quote(['002428'])
+        if quotes and quotes[0].get('price', 0) > 0:
+            return float(quotes[0]['price'])
+    except Exception:
+        pass
+    # fallback: akshare雪球API（可能失败）
     try:
         import akshare as ak
         df = ak.stock_individual_spot_xq(symbol='SZ002428')
@@ -114,9 +124,9 @@ def get_price_002428() -> float:
         for _, row in df.iterrows():
             data[row['item']] = row['value']
         price = float(data.get('现价', 0))
-        return price if price > 0 else 77.12
-    except:
-        return 77.12
+        return price if price > 0 else 69.67  # 最新市场价fallback
+    except Exception:
+        return 69.67  # 最新市场价fallback
 
 
 @st.cache_data(ttl=60)
