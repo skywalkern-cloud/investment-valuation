@@ -22,7 +22,6 @@ from typing import List, Tuple, Dict, Any, Optional
 
 from common.core.discounting_engine import DiscountingEngine
 
-# Updated: 2026-04-29 22:52 CST
 # ========== Page Config ==========
 st.set_page_config(
     page_title="股票估值仪表盘",
@@ -204,6 +203,7 @@ def run_yunnangeiyec_valuation(
       市值 = 净利 × PE(60-80x) = [572, 763]亿
     """
     import warnings
+    import sys
     warnings.filterwarnings('ignore')
 
     from common.core.discounting_engine import DiscountingEngine
