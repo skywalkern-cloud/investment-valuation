@@ -89,7 +89,7 @@ class FinancialFoundation:
             stock_code: 股票代码 (如 '002428')
             report_type: 'annual' 或 'quarter'
         """
-        import akshare as ak
+        import sys
 
         ff = cls(stock_code=stock_code)
 
@@ -159,17 +159,37 @@ class FinancialFoundation:
         except Exception as e:
             print(f"⚠️ 财务摘要获取失败: {e}")
 
-        # 2. 获取实时行情
+        # 2. 获取实时行情 (优先腾讯API，akshare静默失败)
+        ff.price = 0
         try:
-            df_spot = ak.stock_individual_spot_xq(symbol=f'SZ{stock_code}' if stock_code.startswith('00') else f'SH{stock_code}')
-            data_spot = {row['item']: row['value'] for _, row in df_spot.iterrows()}
-            ff.price = float(data_spot.get('现价', 0))
-            # 总股本字段名可能是 '基金份额/总股本' 或 '总股本'
-            shares_raw = data_spot.get('总股本', data_spot.get('基金份额/总股本', 0))
+            # 尝试腾讯行情API（不走代理）
+            sys.path.insert(0, '/Users/vincentnie/.openclaw/workspace-market-insight/scripts')
+            from data.stock_api import get_a_stock_quote
+            quotes = get_a_stock_quote([stock_code])
+            if quotes:
+                ff.price = float(quotes[0]['price'])
+                print(f"  ⚡ 股价获取成功: {ff.price}元 (腾讯行情)")
+        except Exception:
+            pass
+
+        # fallback: akshare（可能失败，返回0）
+        if ff.price == 0:
+            try:
+                df_spot = ak.stock_individual_spot_xq(symbol=f'SZ{stock_code}' if stock_code.startswith('00') else f'SH{stock_code}')
+                data_spot = {row['item']: row['value'] for _, row in df_spot.iterrows()}
+                ff.price = float(data_spot.get('现价', 0))
+                if ff.price > 0:
+                    print(f"  ⚡ 股价获取成功: {ff.price}元 (雪球)")
+            except Exception as e:
+                print(f"  ⚠️ 行情获取失败: {e}")
+
+        # 获取总股本
+        try:
+            shares_raw = data_spot.get('总股本', data_spot.get('基金份额/总股本', 0)) if 'data_spot' in dir() else 0
             ff.shares = float(shares_raw or 0) / 1e8  # 转为亿股
             ff.market_cap = ff.price * ff.shares if ff.shares else 0
-        except Exception as e:
-            print(f"⚠️ 行情获取失败: {e}")
+        except Exception:
+            pass
 
         # 3. 计算衍生指标
         ff._calculate_derived()

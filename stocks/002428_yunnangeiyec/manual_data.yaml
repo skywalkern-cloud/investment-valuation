@@ -4,6 +4,11 @@
 date: '20260429'
 version: "2.0 (AI材料逻辑重构)"
 
+# 实时行情（来自腾讯行情API）
+current_price: 69.67  # 2026-04-29 实时价格
+stock_price: 69.67      # DataFetcher字段名
+current_date: '20260429'
+
 # 磷化铟(InP)衬底数据
 indium_price: 26500  # 元/片（2026年4月，已涨近3倍）
 
