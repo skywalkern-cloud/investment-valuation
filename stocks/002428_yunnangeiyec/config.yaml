@@ -1,112 +1,183 @@
-# 云南锗业(002428) 估值模型配置
-# 通用动态估值系统 v1.2
+# 云南锗业(002428) 估值模型配置 v2.0
+# 基于2026年4月AI光通信材料供需逻辑重构
+# 更新: 2026-04-29
 
 meta:
   stock_code: "002428"
   stock_name: "云南锗业"
   market: "SZ"
   total_shares: 6.53  # 亿股
-  last_updated: "2026-04-25"
+  last_updated: "2026-04-29"
+  version: "2.0"
+  version_note: "从挖矿股重命名为AI材料瓶颈股，大幅更新参数"
 
 # ============================================================
-# 方法论注释 (P1: terminal growth + beta说明)
+# 方法论注释
 # ============================================================
-methodology_notes:
-  terminal_growth:
-    value: 0.03  # 3%
-    assumption: "假设公司永续增长率接近中国长期GDP增速"
-    rationale: |
-      云南锗业为周期性商品公司，锗锭业务长期增速≈通胀(2-3%)；
-      半导体业务(磷化铟/1.6T)处于成长期，增速更高；
-      综合给予3%作为保守永续增长率假设。
-    sensitivity:
-      - { value: 0.02, label: "悲观", impact: "低于中枢15-20%" }
-      - { value: 0.03, label: "基准", impact: "基准假设" }
-      - { value: 0.04, label: "乐观", impact: "高于中枢15-25%" }
-    reference: "DCF估值对terminal_growth极度敏感，详见sensitivity输出"
+methodology_notes: |
+  云南锗业已经不是"挖矿股"，而是"AI算力底层材料瓶颈股"。
+  核心逻辑：
+  1. 1.6T光模块放量元年（2026），EML方案占60%+出货
+  2. EML需要磷化铟(InP)衬底，1.6T消耗量是800G的2.8倍
+  3. 全球InP衬底供需缺口>70%，云南锗业是稀缺的国产供应商
+  4. 全年锁定订单23万片，占当前产能(15万片)的153%——极度供不应求
+  5. 2026年4月公告扩产3倍（1.89亿元投资，15→45万片/年）
 
-  wacc:
-    risk_free_rate:
-      source: "10年期国债收益率"
-      auto: true  # 实时获取
-      fallback: 0.025  # 2.5% (无实时数据时的fallback)
-    beta:
-      value: 1.2
-      source: "wind/choice历史Beta (1年滚动)"
-      last_updated: "2026-04-25"
-      expiry_days: 90
-      expiry_warning: "beta超过90天未更新，请重新确认市场风险溢价"
-    market_premium: 0.05  # 5% (A股市场风险溢价，固定值需定期审视)
-    cost_of_debt: 0.04  # 4% (参考LPR)
+  估值框架：
+  - SOTP分部估值（半导体材料 + 传统锗矿）
+  - 半导体分部PE 60-80x（稀缺AI材料标的给予溢价）
+  - 传统业务PE 15-20x（传统矿业）
 
 # ============================================================
-# SOTP分部配置 (Phase 1)
+# SOTP分部配置 v2.0
 # ============================================================
-plugins:
-  # 传统锗锭业务 - 制造与材料类
-  - type: "manufacturing"
-    name: "传统锗锭业务"
-    weight: 0.40                    # 利润占比(非营收占比)
-    pe_min: 12
-    pe_max: 25
+sotp:
+  # 半导体分部：磷化铟衬底
+  semiconductor:
+    name: "半导体材料分部（磷化铟衬底）"
+    business: "InP衬底 → 光芯片 → 1.6T光模块"
+    weight: 0.70  # 利润占比70%（AI材料贡献主要利润）
+    pe_min: 60
+    pe_max: 80
+    pe_base: 70
+    variables:
+      产能_万片_年: 15        # 当前产能（扩产后45万片）
+      产能利用率: 1.0         # 满产（订单超产能）
+      InP衬底均价_万元_片: 2.65  # 2026年4月价格（已涨近3倍）
+      毛利率: 0.45            # 45%
+      净利率: 0.24            # 制造费用折算后约24%
+      全年锁定订单_万片: 23    # 占当前产能153%（极度供不应求）
+      扩产目标_万片_年: 45    # 2026年4月公告
+      扩产投资_亿元: 1.89
+    key_metrics:
+      供需缺口: "全球>70%（EML方案1.6T占60%+出货）"
+      客户: "华为、中际旭创、光迅科技（核心供应商）；Lumentum、Coherent（海外导入中）"
+      技术节点: "1.6T认证已通过，进入量产阶段"
+      价格趋势: "2025年初至今已涨近3倍"
+
+  # 传统业务：锗矿开采冶炼
+  traditional:
+    name: "传统锗矿业务"
+    business: "锗矿开采+冶炼一体化"
+    weight: 0.30  # 利润占比30%
+    pe_min: 15
+    pe_max: 20
     pe_base: 18
     variables:
-      产能: 50                      # 吨/年
-      良率: 0.88                   # 88%
-      稼动率: 0.85                 # 85%
-    auto_variables:
-      商品售价: "germanium_price"  # 实时获取锗价(SMM)
-    manual_variables:
-      原料成本: 8500               # 元/kg (锗矿石采购价)
-
-  # 半导体业务 - 研发与设计类
-  - type: "fabless"
-    name: "半导体分部"
-    weight: 0.60                    # 利润占比
-    pe_min: 50
-    pe_max: 80
-    pe_base: 65
-    variables:
-      订单管道: 5.0                # 亿 (预期订单)
-      研发成功率: 0.75              # 75%
-      终端渗透率: 0.15              # 15%
-      认证进度: 60                  # 60% (1.6T认证中)
-      BOM占比: 0.35                # 35%
+      锗金属产量_吨_年: 30     # 吨/年
+      锗价_万元_公斤: 1.2      # 万元/公斤
+      毛利率: 0.40
+      净利率: 0.30
+    key_metrics:
+      行业地位: "国内锗矿储量前三，冶炼技术成熟"
+      需求: "红外、光伏、军工（稳定但增速低）"
 
 # ============================================================
-# 关键事件概率权重 (Phase 2 P0)
+# 场景分析配置（新增）
+# ============================================================
+scenarios:
+  - name: "保守-当前产能"
+    capacity_factor: 1.0
+    price_factor: 0.94   # 2.5万/片（低端）
+    semi_pe: 60
+    description: "当前产能满产，InP价格低端，PE保守"
+
+  - name: "基准-当前产能"
+    capacity_factor: 1.0
+    price_factor: 1.06  # 2.8万/片（高端）
+    semi_pe: 70
+    description: "当前产能满产，InP价格高端，PE基准"
+
+  - name: "2026全年指引"
+    capacity_factor: 1.0
+    price_factor: 1.06
+    semi_pe: 75
+    description: "全年锁定订单23万片，产能打满，PE75x"
+
+  - name: "扩产-供需缓和"
+    capacity_factor: 3.0
+    price_factor: 0.94
+    semi_pe: 50
+    description: "45万片新产能上线，价格回落，PE压缩"
+
+  - name: "扩产-供需紧张"
+    capacity_factor: 3.0
+    price_factor: 1.06
+    semi_pe: 70
+    description: "45万片新产能，供需持续紧张，高PE"
+
+  - name: "2027扩产完成"
+    capacity_factor: 3.0
+    price_factor: 0.98
+    semi_pe: 55
+    description: "扩产爬坡完成，销量利用率85%，价格略回落"
+
+# ============================================================
+# 关键事件概率权重（更新）
 # ============================================================
 events:
-  - name: "1.6T认证通过"
+  - name: "1.6T量产突破（良率>90%）"
+    probability: 0.75
+    impact: "positive"
+    magnitude: 1.30
+    description: "1.6T光模块量产良率突破，订单加速释放"
+
+  - name: "扩产如期完成（45万片）"
     probability: 0.65
     impact: "positive"
-    magnitude: 1.40               # 通过后股价×1.4
-    description: "1.6T光模块认证通过并进入量产"
+    magnitude: 1.20
+    description: "2026年扩产按计划完成，2027年产能开始释放"
 
-  - name: "良率突破85%"
-    probability: 0.55
+  - name: "InP价格持续上涨"
+    probability: 0.60
     impact: "positive"
-    magnitude: 1.20               # 突破后股价×1.2
+    magnitude: 1.25
+    description: "供需缺口持续，价格进一步上涨"
 
-  - name: "锗价下跌20%"
-    probability: 0.30
+  - name: "硅光方案替代EML（短期）"
+    probability: 0.20
     impact: "negative"
-    magnitude: 0.85              # 下跌后股价×0.85
+    magnitude: 0.75
+    description: "硅光渗透率提升压制EML需求（短期替代概率低，EML仍占60%+）"
 
-  - name: "1.6T认证失败"
-    probability: 0.15
+  - name: "扩产不及预期"
+    probability: 0.25
     impact: "negative"
-    magnitude: 0.50              # 失败后股价×0.5
+    magnitude: 0.80
+    description: "扩产设备采购/安装延迟，产能释放慢于预期"
+
+  - name: "海外客户认证突破"
+    probability: 0.50
+    impact: "positive"
+    magnitude: 1.35
+    description: "Lumentum/Coherent等海外客户通过认证，订单爆发"
 
 # ============================================================
-# 端到端敏感性分析配置 (Phase 2 P1)
+# 财务数据（2026年4月调研数据）
 # ============================================================
-sensitivity_analysis:
-  sotp_params:
-    商品售价: [12000, 15000, 17500, 20000, 25000]  # 锗价区间
-    良率: [0.80, 0.85, 0.88, 0.90]                 # 良率区间
-  dcf_wacc_range: [0.06, 0.08, 0.10]               # WACC悲观/基准/乐观
-  dcf_tg_range: [0.02, 0.03, 0.04]                 # 永续增长率悲观/基准/乐观
+financials:
+  date: "20260429"
+  note: "Q1数据来自调研估算，一季报4月30日正式披露"
+  Q1_2026:
+    revenue_bn: 21.2
+    net_profit_bn: 5.1
+    shipment_4inch_wan: 8
+    utilization: 1.0
+    order_lock_wan: 23
+    lock_rate: 1.53  # 23万片/15万片产能
+  annual_2026:
+    capacity_4inch_wan: 15
+    expansion_target_4inch_wan: 45
+    expansion_investment_bn: 1.89
+    inP_price_range_万元_片: [2.5, 2.8]
+    inP_price_mid_万元_片: 2.65
+    locked_orders_wan: 23
+    revenue_bn: 39.75
+    net_profit_bn: 9.54
+  share_structure:
+    total_shares_bn: 6.53
+    float_ratio: 0.85
+    free_float_bn: 5.55
 
 # ============================================================
 # 飞书Bitable配置
@@ -115,13 +186,35 @@ bitable:
   enabled: true
   app_token: "EXpqbt8RdaVNsaslViKclTu9nCe"
   table_id: "tblAH85HuqZuyLSH"
-  fields:
-    date: "fldkOQjhFM"
-    indium_price: "fldNlI1JLQ"
-    germanium_price: "fldmJBcEl9"
-    yield_6inch: "fldOtheZPA"
-    ratio_6inch: "fldiRWk0eN"
-    cert_status: "fldklk4Sf4"
-    stock_price: "fldA6Iz4ZT"
-    semi_nm: "fldgTsp5DA"
-    trad_nm: "fldZBlam0n"
+
+# ============================================================
+# 旧配置（兼容旧框架，但已更新参数）
+# ============================================================
+plugins:
+  # 传统锗锭业务（兼容）
+  - type: "manufacturing"
+    name: "传统锗锭业务"
+    weight: 0.30
+    pe_min: 15
+    pe_max: 20
+    pe_base: 18
+    variables:
+      产能: 30
+      良率: 0.88
+      稼动率: 0.90
+      锗价: 1.2
+      净利率: 0.30
+
+  # 半导体业务（兼容）
+  - type: "fabless"
+    name: "半导体分部"
+    weight: 0.70
+    pe_min: 60
+    pe_max: 80
+    pe_base: 70
+    variables:
+      产能万片: 15
+      利用率: 1.0
+      InP均价: 2.65
+      净利率: 0.24
+      订单锁定万片: 23
