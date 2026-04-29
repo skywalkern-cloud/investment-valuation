@@ -89,6 +89,7 @@ class FinancialFoundation:
             stock_code: 股票代码 (如 '002428')
             report_type: 'annual' 或 'quarter'
         """
+        import akshare as ak
         import sys
 
         ff = cls(stock_code=stock_code)
