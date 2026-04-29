@@ -9,8 +9,7 @@
     "weighted_price": 6.4,
     "wacc": 6.45,
     "upside_pct": -94,
-    "pv_ratio": 16.2,
-    "stock_code": "002428"
+    "pv_ratio": 16.2
   },
   {
     "date": "2026-04-21",
@@ -22,8 +21,7 @@
     "weighted_price": 6.5,
     "wacc": 6.45,
     "upside_pct": -94,
-    "pv_ratio": 15.7,
-    "stock_code": "002428"
+    "pv_ratio": 15.7
   },
   {
     "date": "2026-04-22",
@@ -35,8 +33,7 @@
     "weighted_price": 6.3,
     "wacc": 6.45,
     "upside_pct": -94,
-    "pv_ratio": 15.5,
-    "stock_code": "002428"
+    "pv_ratio": 15.5
   },
   {
     "date": "2026-04-23",
@@ -48,8 +45,7 @@
     "weighted_price": 6.6,
     "wacc": 6.45,
     "upside_pct": -94,
-    "pv_ratio": 15.8,
-    "stock_code": "002428"
+    "pv_ratio": 15.8
   },
   {
     "date": "2026-04-24",
@@ -61,8 +57,7 @@
     "weighted_price": 6.4,
     "wacc": 6.45,
     "upside_pct": -94,
-    "pv_ratio": 15.9,
-    "stock_code": "002428"
+    "pv_ratio": 15.9
   },
   {
     "date": "2026-04-25",
@@ -74,8 +69,7 @@
     "weighted_price": 6.6,
     "wacc": 6.45,
     "upside_pct": -94,
-    "pv_ratio": 16.1,
-    "stock_code": "002428"
+    "pv_ratio": 16.1
   },
   {
     "date": "2026-04-17",
@@ -130,5 +124,18 @@
     "weighted_price": 141.5,
     "upside_pct": 10,
     "stock_code": "09988"
+  },
+  {
+    "date": "2026-04-29",
+    "stock_code": "002428",
+    "indium_price": null,
+    "germanium_price": null,
+    "stock_price": null,
+    "sotp_price": 0.0,
+    "dcf_price": 0.0,
+    "weighted_price": 0.0,
+    "wacc": 0.06969999999999998,
+    "upside_pct": -100.0,
+    "pv_ratio": 0
   }
 ]
