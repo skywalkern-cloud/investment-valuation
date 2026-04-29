@@ -211,11 +211,14 @@ def run_yunnangeiyec_valuation(
     import importlib.machinery
 
     repo_root = Path(__file__).parent.parent.parent
+    sys.path.insert(0, str(repo_root))
 
     model_path = repo_root / 'stocks' / '002428_yunnangeiyec' / 'model.py'
     loader = importlib.machinery.SourceFileLoader('yunnangeiyec_model', str(model_path))
     yunnangeiyec_module = loader.load_module()
     YunnangeiyecSOTP = yunnangeiyec_module.YunnangeiyecSOTP
+    # 验证导入成功
+    _ = YunnangeiyecSOTP()
 
     # 加载配置和数据
     with open(repo_root / 'stocks/002428_yunnangeiyec/config.yaml') as f:
