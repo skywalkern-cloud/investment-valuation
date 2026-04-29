@@ -10,6 +10,7 @@ Streamlit Dashboard - 股票估值仪表盘 v3.0
 - 估值计算：本地引擎
 """
 
+import sys
 import streamlit as st
 import pandas as pd
 import json
