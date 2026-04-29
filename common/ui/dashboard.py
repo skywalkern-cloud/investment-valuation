@@ -207,7 +207,11 @@ def run_yunnangeiyec_valuation(
     from common.core.discounting_engine import DiscountingEngine
     from common.core.sensitivity_runner import run_sensitivity_analysis, SensitivityConfig
     from common.core.financial_foundation import FinancialFoundation
-    from stocks.002428_yunnangeiyec.model import YunnangeiyecSOTP
+    import importlib.machinery
+    model_path = repo_root / 'stocks' / '002428_yunnangeiyec' / 'model.py'
+    loader = importlib.machinery.SourceFileLoader('yunnangeiyec_model', str(model_path))
+    yunnangeiyec_module = loader.load_module()
+    YunnangeiyecSOTP = yunnangeiyec_module.YunnangeiyecSOTP
 
     repo_root = Path(__file__).parent.parent.parent
 
