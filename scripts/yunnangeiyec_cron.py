@@ -134,7 +134,7 @@ def calc_valuation(spot, commodity, manual_data):
         from common.core.discounting_engine import DiscountingEngine
         from common.core.probability_weight import ProbabilityWeightEngine
         # 使用云南锗业专用的SOTP类
-        import sys, os
+        import sys, os, yaml
         sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'stocks', '002428_yunnangeiyec'))
         from model import YunnangeiyecSOTP
     except ImportError as e:
@@ -189,13 +189,23 @@ def calc_valuation(spot, commodity, manual_data):
         terminal_growth=0.03,
     )
 
-    # 概率加权
-    events = [
-        {'name': '1.6T认证通过', 'probability': 0.65, 'magnitude': 1.40, 'impact': 'positive'},
-        {'name': '良率突破85%', 'probability': 0.55, 'magnitude': 1.20, 'impact': 'positive'},
-        {'name': '锗价下跌20%', 'probability': 0.30, 'magnitude': 0.85, 'impact': 'negative'},
-        {'name': '1.6T认证失败', 'probability': 0.15, 'magnitude': 0.50, 'impact': 'negative'},
-    ]
+    # 概率加权（从config.yaml读取，统一数据源）
+    events_config_path = os.path.join(os.path.dirname(__file__), '..', 'stocks', '002428_yunnangeiyec', 'config.yaml')
+    events = []
+    try:
+        with open(events_config_path, 'r', encoding='utf-8') as f:
+            cfg = yaml.safe_load(f)
+            events = cfg.get('events', [])
+    except Exception:
+        pass
+    if not events:
+        # fallback旧事件（仅当config.yaml读取失败时）
+        events = [
+            {'name': '1.6T认证通过', 'probability': 0.65, 'magnitude': 1.40, 'impact': 'positive'},
+            {'name': '良率突破85%', 'probability': 0.55, 'magnitude': 1.20, 'impact': 'positive'},
+            {'name': '锗价下跌20%', 'probability': 0.30, 'magnitude': 0.85, 'impact': 'negative'},
+            {'name': '1.6T认证失败', 'probability': 0.15, 'magnitude': 0.50, 'impact': 'negative'},
+        ]
     pw = ProbabilityWeightEngine.from_config_list(events)
     base_cap = dcf_result['股权价值_亿']
     weighted_cap = pw.apply(base_cap)
