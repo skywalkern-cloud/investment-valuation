@@ -207,7 +207,8 @@ def calc_valuation(spot, commodity, manual_data):
             {'name': '1.6T认证失败', 'probability': 0.15, 'magnitude': 0.50, 'impact': 'negative'},
         ]
     pw = ProbabilityWeightEngine.from_config_list(events)
-    base_cap = dcf_result['股权价值_亿']
+    # 概率加权基准：统一用SOTP口径（与dashboard.py一致）
+    base_cap = sotp_result['sotp_cap_base']  # SOTP总市值(亿元)
     weighted_cap = pw.apply(base_cap)
     weighted_price = weighted_cap / 6.53
 
