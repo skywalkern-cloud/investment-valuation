@@ -143,12 +143,12 @@
     "stock_code": "002428",
     "indium_price": 4350.0,
     "germanium_price": 17750.0,
-    "stock_price": 69.22,
+    "stock_price": 70.51,
     "sotp_price": 146.30168453292495,
     "dcf_price": 90.73,
-    "weighted_price": 112.09076166018376,
+    "weighted_price": 153.1541049970664,
     "wacc": 0.06969999999999998,
-    "upside_pct": 111.35753327495661,
-    "pv_ratio": 0.47313194117339197
+    "upside_pct": 107.49068860151034,
+    "pv_ratio": 0.4819493379389753
   }
 ]
