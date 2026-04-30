@@ -110,11 +110,12 @@ def get_price_002428() -> float:
     """获取云南锗业A股实时股价（腾讯行情API，优先）"""
     # 优先：腾讯行情API（不走代理，稳定）
     try:
-        sys.path.insert(0, '/Users/vincentnie/.openclaw/workspace-market-insight/scripts')
-        from data.stock_api import get_a_stock_quote
+        from common.stock_api import get_a_stock_quote
         quotes = get_a_stock_quote(['002428'])
         if quotes and quotes[0].get('price', 0) > 0:
             return float(quotes[0]['price'])
+    except Exception as e:
+        print(f"⚠️ 腾讯行情失败: {e}")
     except Exception:
         pass
     # fallback: akshare雪球API（可能失败）
