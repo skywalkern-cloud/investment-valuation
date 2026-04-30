@@ -92,25 +92,25 @@ sensitivity_analysis:
 events:
   - name: "TWS耳机市场复苏"
     probability: 0.70
-    magnitude: 0.15
+    magnitude: 1.15  # 【修复】magnitude为比例因子，1.15=上涨15%（原0.15被engine误读为-85%）
     impact_type: positive
     description: "TWS去库存结束，2026年出货量正增长"
 
   - name: "AI眼镜放量"
     probability: 0.50
-    magnitude: 0.25
+    magnitude: 1.25  # 【修复】+25%上涨（原0.25→-75%严重错误）
     impact_type: positive
     description: "Meta/Ray-Ban/百度/字节AI眼镜上量"
 
   - name: "汽车芯片通过认证"
     probability: 0.40
-    magnitude: 0.12
+    magnitude: 1.12  # 【修复】+12%上涨（原0.12→-88%）
     impact_type: positive
     description: "车载音频芯片进入更多车厂"
 
   - name: "WiFi6芯片量产"
     probability: 0.45
-    magnitude: 0.18
+    magnitude: 1.18  # 【修复】+18%上涨（原0.18→-82%）
     impact_type: positive
     description: "WiFi6芯片在IoT场景放量"
 
