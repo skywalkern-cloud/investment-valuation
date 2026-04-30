@@ -15,9 +15,7 @@
 - 净利率: 5.43%
 """
 
-import numpy as np
-import os
-import yaml
+from pathlib import Path
 from typing import Dict, Any
 
 
@@ -110,8 +108,9 @@ class LensHK_SOTP:
     def from_config(cls, config_path: str = None, repo_root: str = None) -> 'LensHK_SOTP':
         """从config.yaml读取参数"""
         if config_path is None:
+            # 兼容云端部署：用__file__相对路径，不再用硬编码绝对路径
             if repo_root is None:
-                repo_root = '/Users/vincentnie/.openclaw/workspace-valuation'
+                repo_root = Path(__file__).parent.parent.parent  # 云端: /mount/src/investment-valuation
             config_path = f'{repo_root}/stocks/300433_lens/config.yaml'
         
         with open(config_path, 'r') as f:
