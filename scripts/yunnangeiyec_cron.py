@@ -429,7 +429,7 @@ def main():
     record = {
         '日期': int(datetime.now().timestamp() * 1000),
         '铟价(元/kg)': commodity.get('indium_price'),
-        '锗价(万元/吨)': commodity.get('germanium_price'),  # 注意：Bitable字段名是万元/吨，但实际存的是元/kg，需修正为统一单位
+        '锗价(元/kg)': commodity.get('germanium_price'),  # 新字段(2026-04-30创建)，旧字段锗价(万元/吨)已废弃
         '股价(元)': spot.get('current_price'),
         '营收(亿元)': financials.get('revenue'),
         '净利润(亿元)': financials.get('net_profit'),
