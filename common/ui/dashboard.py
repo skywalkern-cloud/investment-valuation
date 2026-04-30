@@ -78,6 +78,19 @@ STOCK_REGISTRY = {
         "manual_path": "stocks/09988_alibaba/manual_data.yaml",
         "model_path": "stocks/09988_alibaba/model.py",
     },
+    "06613": {
+        "name": "蓝思科技",
+        "code": "06613",
+        "market": "HK",
+        "currency": "HKD",
+        "currency_symbol": "HK$",
+        "symbol_tencent": "hk06613",
+        "shares": 52.79,  # 亿股
+        "config_path": "stocks/300433_lens/config.yaml",
+        "manual_path": "stocks/300433_lens/manual_data.yaml",
+        "model_path": "stocks/300433_lens/model.py",
+        "hkd_cny_rate": 0.92,
+    },
 }
 
 
@@ -156,12 +169,31 @@ def get_price_09988() -> float:
     return manual.get("market", {}).get("current_price", 131.8)
 
 
+@st.cache_data(ttl=300)
+def get_price_06613() -> float:
+    """获取蓝思科技港股实时股价（HKD）"""
+    try:
+        import requests
+        resp = requests.get('https://qt.gtimg.cn/q=hk06613', timeout=10)
+        resp.encoding = 'gbk'
+        for line in resp.text.split('\n'):
+            if 'hk06613' in line:
+                parts = line.split('~')
+                price = float(parts[3]) if parts[3] else None
+                return price if price and price > 0 else 16.70
+    except Exception as e:
+        print(f"⚠️ 腾讯行情HK06613失败: {e}")
+    return 16.70  # fallback
+
+
 def get_current_price(stock_code: str) -> float:
     """根据股票代码获取实时股价"""
     if stock_code == "002428":
         return get_price_002428()
     elif stock_code == "09988":
         return get_price_09988()
+    elif stock_code == "06613":
+        return get_price_06613()
     return 0.0
 
 
@@ -448,6 +480,90 @@ def run_alibaba_valuation(
     }
 
 
+def run_lens_valuation(
+    rf: float, beta: float, tg: float, current_price: float,
+    cost_of_debt: float = 0.05, tax_rate: float = 0.15, debt_ratio: float = 0.3
+) -> Dict[str, Any]:
+    """蓝思科技(HK06613)估值计算"""
+    import sys
+    import importlib.machinery
+    import warnings
+    from pathlib import Path
+    warnings.filterwarnings('ignore')
+
+    repo_root = Path(__file__).parent.parent.parent
+    sys.path.insert(0, str(repo_root))
+    sys.path.insert(0, str(repo_root / 'stocks' / '300433_lens'))
+
+    # 加载配置和模型
+    with open(repo_root / 'stocks/300433_lens/config.yaml') as f:
+        config = yaml.safe_load(f)
+
+    stock_info = STOCK_REGISTRY["06613"]
+    shares = stock_info["shares"]  # 52.79亿股
+    hkd_cny_rate = stock_info.get("hkd_cny_rate", 0.92)
+
+    # WACC
+    wacc = calc_wacc_safe(rf, beta, market_premium=0.07,
+                          cost_of_debt=cost_of_debt, tax_rate=tax_rate, debt_ratio=debt_ratio)
+
+    # SOTP估值 — 使用LensHK_SOTP
+    from model import LensHK_SOTP
+    sotp = LensHK_SOTP.from_config()
+    sotp_result = sotp.calculate(current_price)  # current_price in HKD
+
+    sotp_price_hkd = sotp_result['target_base_hkd']
+    sotp_min_hkd = sotp_result['target_min_hkd']
+    sotp_max_hkd = sotp_result['target_max_hkd']
+    sotp_cap_base = sotp_result['sotp_cap_base_hkd']
+
+    # DCF: 基于总净利
+    total_nm = sotp_result['total_net_profit']  # HKD亿
+    growth_rates = [0.15, 0.18, 0.20, 0.18, 0.15]
+    fcf_proj = [round(total_nm * (1 + g) ** (i + 1) * 0.85, 2) for i, g in enumerate(growth_rates)]
+
+    engine = DiscountingEngine()
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore')
+        dcf_result = engine.compute_dcf(
+            fcf_projections=fcf_proj,
+            terminal_fcf=fcf_proj[-1],
+            wacc=wacc,
+            net_debt=0.0,
+            shares=shares,
+            terminal_growth=tg,
+        )
+    dcf_price_hkd = dcf_result['目标价_元']
+
+    # 概率加权
+    events = config.get('events', [])
+    weighted_price_hkd = None
+    if events:
+        from common.core.probability_weight import ProbabilityWeightEngine
+        pw = ProbabilityWeightEngine.from_config_list(events)
+        weighted_cap = pw.apply(sotp_cap_base)
+        weighted_price_hkd = weighted_cap / shares
+
+    sotp_detail = sotp.get_sotp_detail()
+
+    return {
+        "sotp_price": sotp_price_hkd,
+        "sotp_min": sotp_min_hkd,
+        "sotp_max": sotp_max_hkd,
+        "dcf_price": dcf_price_hkd,
+        "weighted_price": weighted_price_hkd,
+        "wacc": wacc,
+        "wacc_pct": wacc * 100,
+        "current_price": current_price,
+        "fcf_proj": fcf_proj,
+        "currency": "HKD",
+        "currency_symbol": "HK$",
+        "sotp_detail": sotp_detail,
+        "hkd_cny_rate": hkd_cny_rate,
+        "sotp_cap_base": sotp_cap_base,
+        "total_net_profit": total_nm,
+    }
+
 # ========== 趋势图 ==========
 def render_trend(df: pd.DataFrame, stock_code: str):
     st.markdown('<p class="section-header">📈 历史趋势</p>', unsafe_allow_html=True)
@@ -698,6 +814,7 @@ def main():
         stock_options = {
             "002428": "🇨🇳 云南锗业 (002428)",
             "09988": "🇭🇰 阿里巴巴 (09988)",
+            "06613": "🇭🇰 蓝思科技 (06613)",
         }
         selected = st.selectbox(
             "选择股票",
@@ -726,6 +843,10 @@ def main():
         if selected == "002428":
             mp = 0.05   # A股 5%
             beta_default = 1.2
+            tg_default = 0.03
+        elif selected == "06613":
+            mp = 0.07   # 港股 7%
+            beta_default = 1.05
             tg_default = 0.03
         else:
             mp = 0.07   # 港股 7%
@@ -785,6 +906,16 @@ def main():
         sotp_min = None
         sotp_max = None
         df_history = load_history()
+    elif selected == "06613":
+        val = run_lens_valuation(
+            rf=rf_val, beta=beta, tg=tg, current_price=current_price
+        )
+        sotp_price = val["sotp_price"]
+        dcf_price = val["dcf_price"]
+        weighted_price = val.get("weighted_price", None)
+        sotp_min = val.get("sotp_min", None)
+        sotp_max = val.get("sotp_max", None)
+        df_history = pd.DataFrame()  # 蓝思暂无历史数据
     else:
         val = run_alibaba_valuation(
             rf=rf_val, beta=beta, tg=tg, current_price=current_price,
@@ -862,6 +993,39 @@ def main():
         | 当前价 | {val.get('current_price', 0):.2f}元 |
         | 上涨空间 | {(val.get('sotp_price',0)/val.get('current_price',1)-1)*100:+.0f}% |
         """)
+
+    # 06613: SOTP分部分说明
+    if selected == "06613":
+        st.markdown("---")
+        st.markdown('<p class="section-header">📊 SOTP分部分说明（蓝思科技HK06613）</p>', unsafe_allow_html=True)
+        sotp_detail = val.get('sotp_detail', {})
+        segments = sotp_detail.get('segments', [])
+        if segments:
+            for seg in segments:
+                st.markdown(f"""
+                **【{seg['name']}】**
+                | 参数 | 值 |
+                |---|---|
+                | 收入(HKD) | **{seg['revenue_hkd']:.0f}亿元** |
+                | 净利率 | {seg['net_margin']:.1f}% |
+                | 净利润(HKD) | **{seg['net_profit_hkd']:.2f}亿元** |
+                | PE区间 | {seg['pe_range']} (中枢{seg['pe_base']}x) |
+                | 市值(HKD) | **{seg['cap_hkd']:.1f}亿元** ({seg['pct']}) |
+                """)
+            # SOTP合计
+            total_nm = sotp_detail.get('total_net_profit_hkd', 0)
+            sotp_cap = val.get('sotp_cap_base', 0)
+            st.markdown(f"""
+            **【SOTP合计】**
+            | 指标 | 值 |
+            |---|---|
+            | 总净利润(HKD) | **{total_nm:.2f}亿元** (含合并调整{sotp_detail.get('profit_adjustment', 0):.1f}亿) |
+            | SOTP总市值(HKD) | **{sotp_cap:.1f}亿元** |
+            | 当前价(HKD) | {val.get('current_price', 0):.2f} |
+            | 上涨空间 | {val.get('sotp_price', 0)/val.get('current_price', 1)*100-100:+.1f}% |
+            | DCF目标价 | {val.get('dcf_price', 0):.2f} HKD ({val.get('dcf_price', 0)*val.get('hkd_cny_rate', 0.92):.2f} CNY) |
+            | 概率加权 | {val.get('weighted_price', 0):.2f} HKD |
+            """)
 
     # 09988: 端到端敏感性分析展示
     if selected == "09988" and val.get("sensitivity"):
