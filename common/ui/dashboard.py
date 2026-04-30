@@ -526,6 +526,10 @@ def run_lens_valuation(
         from model import LensHK_SOTP
         sotp = LensHK_SOTP.from_config()
         sotp_result = sotp.calculate(current_price)
+        total_nm = sotp_result.get('total_net_profit', 0)
+        growth_rates = [0.15, 0.18, 0.20, 0.18, 0.15]
+        fcf_conv = 0.65
+        fcf_proj = [round(total_nm * (1 + g) * fcf_conv, 2) for g in growth_rates]
         return {
             "sotp_price": sotp_result['target_base'],
             "sotp_min": sotp_result.get('target_min', None),
@@ -534,10 +538,11 @@ def run_lens_valuation(
             "weighted_price": sotp_result.get('weighted_price', None),
             "current_price": current_price,
             "sotp_detail": sotp_result,
+            "fcf_proj": fcf_proj,
         }
     except Exception as e:
         st.error(f"⚠️ 蓝思科技估值计算失败: {str(e)[:200]}")
-        return {"sotp_price": 0, "dcf_price": 0, "current_price": current_price}
+        return {"sotp_price": 0, "dcf_price": 0, "current_price": current_price, "fcf_proj": [0, 0, 0, 0, 0]}
 
 
 
@@ -1140,7 +1145,7 @@ def main():
 
     st.markdown("---")
     render_heatmap(
-        val["fcf_proj"],
+        val.get("fcf_proj", []),
         shares=stock_info["shares"],
         currency_symbol=currency_symbol
     )
