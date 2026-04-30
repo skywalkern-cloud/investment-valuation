@@ -751,10 +751,10 @@ def render_soccer(sotp_price: float, dcf_price: float, current_price: float,
     cols = st.columns(4)
     delta_color = "inverse"
     with cols[0]:
-        delta_sotp = f"{((sotp_price or 0)/(max(current_price or 1, 0.001))-1)*100:.0f}%" if current_price > 0 else "N/A"
+        delta_sotp = f"{((sotp_price or 0)/(max(current_price or 1, 0.001))-1)*100:.0f}%"
         st.metric("SOTP", f"{(sotp_price or 0):.1f}{currency_symbol}", delta=delta_sotp, delta_color=delta_color)
     with cols[1]:
-        delta_dcf = f"{((dcf_price or 0)/(max(current_price or 1, 0.001))-1)*100:.0f}%" if current_price > 0 else "N/A"
+        delta_dcf = f"{((dcf_price or 0)/(max(current_price or 1, 0.001))-1)*100:.0f}%"
         st.metric("DCF", f"{(dcf_price or 0):.1f}{currency_symbol}", delta=delta_dcf, delta_color=delta_color)
     with cols[2]:
         st.metric("PE×20", f"{(current_price or 0)*0.4:.1f}{currency_symbol}")
@@ -811,12 +811,12 @@ def render_sotp_detail(sotp_detail: Dict[str, Any], currency_symbol: str = "HK$"
     if divisions:
         rows = []
         for div in divisions:
-            min_cap, max_cap = div.get('分部市值_亿_区间', (0, 0))
+            min_cap, max_cap = div.get('分部市值_亿_区间') or (0, 0)
             rows.append({
                 '分部': div.get('name', ''),
                 '净利润(亿)': div.get('分部净利润_亿', 0),
                 'PE区间': div.get('PE区间', ''),
-                '市值(亿)': f"{min_cap:.0f}~{max_cap:.0f}",
+                '市值(亿)': f"{(min_cap or 0):.0f}~{(max_cap or 0):.0f}",
             })
         df = pd.DataFrame(rows)
         st.dataframe(df, width="stretch")
@@ -1042,9 +1042,8 @@ def main():
         | 市值区间 | {(trad_nm or 0)*15:.1f} ~ {(trad_nm or 0)*20:.1f}亿元 |
         """)
         # SOTP合计
-        # Precompute upside for 002428
-        _sotp_428 = val.get("sotp_price") or 0
-        _cur_428 = val.get("current_price") or 0
+        _sotp_428 = (val.get("sotp_price") or 0)
+        _cur_428 = (val.get("current_price") or 0)
         _up_428 = ((_sotp_428 / max(_cur_428, 1)) - 1) * 100 if _cur_428 > 0 else -100
         st.markdown("**【SOTP合计】**")
         sotp_cap = val.get('sotp_price', 0) * 6.53
@@ -1059,8 +1058,8 @@ def main():
         | 传统业务市值 | {(trad_cap or 0):.1f}亿元 |
         | SOTP总市值 | {((semi_cap or 0)+(trad_cap or 0)):.1f}亿元 |
         | 目标价区间 | {(sotp_min_total or 0):.1f} ~ {(sotp_max_total or 0):.1f}元 |
-        | 目标价中枢 | **{val.get('sotp_price', 0):.1f}元** |
-        | 当前价 | {val.get('current_price', 0):.2f}元 |
+        | 目标价中枢 | **{(val.get('sotp_price') or 0):.1f}元** |
+        | 当前价 | {(val.get('current_price') or 0):.2f}元 |
         | 上涨空间 | {_up_428:+.1f}% |
         """)
 
@@ -1085,7 +1084,6 @@ def main():
             # SOTP合计
             total_nm = sotp_detail.get('total_net_profit_hkd', 0)
             sotp_cap = val.get('sotp_cap_base', 0)
-            # Precompute upside for 06613
             _sotp_613 = (val.get("sotp_price") or 0)
             _cur_613 = (val.get("current_price") or 0)
             _up_613 = ((_sotp_613 / max(_cur_613, 1)) - 1) * 100 if _cur_613 > 0 else -100
@@ -1093,8 +1091,8 @@ def main():
             **【SOTP合计】**
             | 指标 | 值 |
             |---|---|
-            | 总净利润(HKD) | **{total_nm:.2f}亿元** (含合并调整{(sotp_detail.get('profit_adjustment') or 0):.1f}亿) |
-            | SOTP总市值(HKD) | **{sotp_cap:.1f}亿元** |
+            | 总净利润(HKD) | **{(total_nm or 0):.2f}亿元** (含合并调整{(sotp_detail.get('profit_adjustment') or 0):.1f}亿) |
+            | SOTP总市值(HKD) | **{(sotp_cap or 0):.1f}亿元** |
             | 当前价(HKD) | {(val.get('current_price') or 0):.2f} |
             | 上涨空间 | {_up_613:+.1f}% |
             | DCF目标价 | {(val.get('dcf_price') or 0):.2f} HKD ({((val.get('dcf_price') or 0) * (val.get('hkd_cny_rate') or 0.92)):.2f} CNY) |
