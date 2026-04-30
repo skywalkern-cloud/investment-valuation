@@ -781,11 +781,11 @@ def render_soccer(sotp_price: float, dcf_price: float, current_price: float,
     cols = st.columns(4)
     delta_color = "inverse"
     with cols[0]:
-        delta_sotp = f"{(sotp_price/current_price-1)*100:.0f}%" if current_price > 0 else "N/A"
-        st.metric("SOTP", f"{sotp_price:.1f}{currency_symbol}", delta=delta_sotp, delta_color=delta_color)
+        delta_sotp = f"{((sotp_price or 0)/(current_price or 1)-1)*100:.0f}%" if (current_price or 1) > 0 else "N/A"
+        st.metric("SOTP", f"{(sotp_price or 0):.1f}{currency_symbol}", delta=delta_sotp, delta_color=delta_color)
     with cols[1]:
-        delta_dcf = f"{(dcf_price/current_price-1)*100:.0f}%" if current_price > 0 else "N/A"
-        st.metric("DCF", f"{dcf_price:.1f}{currency_symbol}", delta=delta_dcf, delta_color=delta_color)
+        delta_dcf = f"{((dcf_price or 0)/(current_price or 1)-1)*100:.0f}%" if (current_price or 1) > 0 else "N/A"
+        st.metric("DCF", f"{(dcf_price or 0):.1f}{currency_symbol}", delta=delta_dcf, delta_color=delta_color)
     with cols[2]:
         st.metric("PE×20", f"{current_price*0.4:.1f}{currency_symbol}")
     with cols[3]:
@@ -1127,19 +1127,19 @@ def main():
             **【SOTP合计】**
             | 指标 | 值 |
             |---|---|
-            | 总净利润(CNY) | **{total_nm:.2f}亿元** (含合并调整{sotp_detail.get('profit_adjustment', 0):.2f}亿) |
-            | SOTP总市值(CNY) | **{sotp_cap:.1f}亿元** |
-            | 当前价(CNY) | {val.get('current_price', 0):.2f}元 |
-            | SOTP目标价区间 | {val.get('sotp_min', 0):.1f} ~ {val.get('sotp_max', 0):.1f}元 |
-            | SOTP目标价中枢 | **{val.get('sotp_price', 0):.1f}元** |
-            | 上涨空间 | {(val.get('sotp_price',0)/val.get('current_price',1)-1)*100:+.1f}% |
+            | 总净利润(CNY) | **{(total_nm or 0):.2f}亿元** (含合并调整{(sotp_detail.get('profit_adjustment', 0) or 0):.2f}亿) |
+            | SOTP总市值(CNY) | **{(sotp_cap or 0):.1f}亿元** |
+            | 当前价(CNY) | {(val.get('current_price', 0) or 0):.2f}元 |
+            | SOTP目标价区间 | {(val.get('sotp_min', 0) or 0):.1f} ~ {(val.get('sotp_max', 0) or 0):.1f}元 |
+            | SOTP目标价中枢 | **{(val.get('sotp_price', 0) or 0):.1f}元** |
+            | 上涨空间 | {((val.get('sotp_price', 0) or 0)/(val.get('current_price', 1) or 1)-1)*100:+.1f}% |
             """)
 
         # 概率加权说明
         st.markdown("---")
         st.markdown('<p class="section-header">🎲 概率加权估值说明</p>', unsafe_allow_html=True)
-        sotp_cap = val.get('sotp_cap_base', 326.6)
-        weighted_price = val.get('weighted_price', 0)
+        sotp_cap = val.get('sotp_cap_base', 326.6) or 0
+        weighted_price = val.get('weighted_price', 0) or 0
         weighted_cap = weighted_price * 1.69 if weighted_price else 0
         multiplier = weighted_cap / sotp_cap if sotp_cap > 0 else 0
         st.markdown(f"""
@@ -1159,10 +1159,10 @@ def main():
         **【概率加权结果】**
         | 指标 | 值 |
         |---|---|
-        | SOTP基准市值 | **{sotp_cap:.1f}亿元** |
+        | SOTP基准市值 | **{(sotp_cap or 0):.1f}亿元** |
         | 综合乘数 | **{multiplier:.3f}x** |
         | 概率加权市值 | **{weighted_cap:.1f}亿元** |
-        | 概率加权目标价 | **{weighted_price:.1f}元** |
+        | 概率加权目标价 | **{(weighted_price or 0):.1f}元** |
         """)
 
     # 06613: SOTP分部分说明
@@ -1190,12 +1190,12 @@ def main():
             **【SOTP合计】**
             | 指标 | 值 |
             |---|---|
-            | 总净利润(HKD) | **{total_nm:.2f}亿元** (含合并调整{sotp_detail.get('profit_adjustment', 0):.1f}亿) |
-            | SOTP总市值(HKD) | **{sotp_cap:.1f}亿元** |
-            | 当前价(HKD) | {val.get('current_price', 0):.2f} |
-            | 上涨空间 | {val.get('sotp_price', 0)/val.get('current_price', 1)*100-100:+.1f}% |
-            | DCF目标价 | {val.get('dcf_price', 0):.2f} HKD ({val.get('dcf_price', 0)*val.get('hkd_cny_rate', 0.92):.2f} CNY) |
-            | 概率加权 | {val.get('weighted_price', 0):.2f} HKD |
+            | 总净利润(HKD) | **{(total_nm or 0):.2f}亿元** (含合并调整{(sotp_detail.get('profit_adjustment', 0) or 0):.1f}亿) |
+            | SOTP总市值(HKD) | **{(sotp_cap or 0):.1f}亿元** |
+            | 当前价(HKD) | {(val.get('current_price', 0) or 0):.2f} |
+            | 上涨空间 | {((val.get('sotp_price', 0) or 0)/(val.get('current_price', 1) or 1)*100-100:+.1f}% |
+            | DCF目标价 | {(val.get('dcf_price', 0) or 0):.2f} HKD ({(val.get('dcf_price', 0) or 0)*(val.get('hkd_cny_rate', 0.92) or 0.92):.2f} CNY) |
+            | 概率加权 | {(val.get('weighted_price', 0) or 0):.2f} HKD |
             """)
 
     # 09988: 端到端敏感性分析展示
