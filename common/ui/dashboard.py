@@ -91,6 +91,15 @@ STOCK_REGISTRY = {
         "model_path": "stocks/300433_lens/model.py",
         "hkd_cny_rate": 0.92,
     },
+    "688608": {
+        "name": "恒玄科技",
+        "code": "688608",
+        "market": "SH",
+        "currency": "CNY",
+        "symbol_tencent": "sh688608",
+        "shares": 1.69,
+        "config_path": "stocks/688608_hengxuan/config.yaml",
+    },
 }
 
 
@@ -186,6 +195,22 @@ def get_price_06613() -> float:
     return 16.70  # fallback
 
 
+def get_price_688608() -> float:
+    """获取恒玄科技A股实时股价（CNY）"""
+    try:
+        import requests
+        resp = requests.get('https://qt.gtimg.cn/q=sh688608', timeout=10)
+        resp.encoding = 'gbk'
+        for line in resp.text.split('\n'):
+            if 'sh688608' in line:
+                parts = line.split('~')
+                price = float(parts[3]) if parts[3] else None
+                return price if price and price > 0 else 170.70
+    except Exception as e:
+        print(f"⚠️ 腾讯行情SH688608失败: {e}")
+    return 170.70  # fallback
+
+
 def get_current_price(stock_code: str) -> float:
     """根据股票代码获取实时股价"""
     if stock_code == "002428":
@@ -194,6 +219,8 @@ def get_current_price(stock_code: str) -> float:
         return get_price_09988()
     elif stock_code == "06613":
         return get_price_06613()
+    elif stock_code == "688608":
+        return get_price_688608()
     return 0.0
 
 
@@ -495,17 +522,55 @@ def run_lens_valuation(
     sys.path.insert(0, str(repo_root))
     sys.path.insert(0, str(repo_root / 'stocks' / '300433_lens'))
 
-    # 加载配置和模型
-    with open(repo_root / 'stocks/300433_lens/config.yaml') as f:
-        config = yaml.safe_load(f)
+    try:
+        from model import LensHK_SOTP
+        sotp = LensHK_SOTP.from_config()
+        sotp_result = sotp.calculate(current_price)
+        return {
+            "sotp_price": sotp_result['target_base'],
+            "sotp_min": sotp_result.get('target_min', None),
+            "sotp_max": sotp_result.get('target_max', None),
+            "dcf_price": sotp_result.get('dcf_price', 0),
+            "weighted_price": sotp_result.get('weighted_price', None),
+            "current_price": current_price,
+            "sotp_detail": sotp_result,
+        }
+    except Exception as e:
+        st.error(f"⚠️ 蓝思科技估值计算失败: {str(e)[:200]}")
+        return {"sotp_price": 0, "dcf_price": 0, "current_price": current_price}
 
-    stock_info = STOCK_REGISTRY["06613"]
-    shares = stock_info["shares"]  # 52.79亿股
-    hkd_cny_rate = stock_info.get("hkd_cny_rate", 0.92)
 
-    # WACC
-    wacc = calc_wacc_safe(rf, beta, market_premium=0.07,
-                          cost_of_debt=cost_of_debt, tax_rate=tax_rate, debt_ratio=debt_ratio)
+
+def run_hengxuan_valuation(
+    rf: float, beta: float, tg: float, current_price: float,
+    cost_of_debt: float = 0.04, tax_rate: float = 0.15, debt_ratio: float = 0.2
+) -> Dict[str, Any]:
+    """恒玄科技(688608)估值计算"""
+    import warnings
+    from pathlib import Path
+    warnings.filterwarnings('ignore')
+
+    repo_root = Path(__file__).parent.parent.parent
+    sys.path.insert(0, str(repo_root))
+    sys.path.insert(0, str(repo_root / 'stocks' / '688608_hengxuan'))
+
+    try:
+        from model import HengxuanSOTP
+        sotp = HengxuanSOTP.from_config()
+        sotp_result = sotp.calculate(current_price)
+        return {
+            "sotp_price": sotp_result.get('target_base', 0),
+            "sotp_min": sotp_result.get('target_min', None),
+            "sotp_max": sotp_result.get('target_max', None),
+            "dcf_price": 0,  # DCF在model内部计算，这里简化
+            "weighted_price": None,
+            "current_price": current_price,
+            "sotp_detail": sotp_result,
+            "total_net_profit": sotp_result.get('total_net_profit', 0),
+        }
+    except Exception as e:
+        st.error(f"⚠️ 恒玄科技估值计算失败: {str(e)[:200]}")
+        return {"sotp_price": 0, "dcf_price": 0, "current_price": current_price}
 
     # SOTP估值 — 使用LensHK_SOTP
     from model import LensHK_SOTP
@@ -815,6 +880,7 @@ def main():
             "002428": "🇨🇳 云南锗业 (002428)",
             "09988": "🇭🇰 阿里巴巴 (09988)",
             "06613": "🇭🇰 蓝思科技 (06613)",
+            "688608": "🇨🇳 恒玄科技 (688608)",
         }
         selected = st.selectbox(
             "选择股票",
@@ -847,6 +913,10 @@ def main():
         elif selected == "06613":
             mp = 0.07   # 港股 7%
             beta_default = 1.05
+            tg_default = 0.03
+        elif selected == "688608":
+            mp = 0.05   # 科创板 5%
+            beta_default = 0.95
             tg_default = 0.03
         else:
             mp = 0.07   # 港股 7%
@@ -916,6 +986,16 @@ def main():
         sotp_min = val.get("sotp_min", None)
         sotp_max = val.get("sotp_max", None)
         df_history = pd.DataFrame()  # 蓝思暂无历史数据
+    elif selected == "688608":
+        val = run_hengxuan_valuation(
+            rf=rf_val, beta=beta, tg=tg, current_price=current_price
+        )
+        sotp_price = val.get("sotp_price", val.get("target_base", 0))
+        dcf_price = val.get("dcf_price", 0)
+        weighted_price = val.get("weighted_price", None)
+        sotp_min = val.get("sotp_min", None)
+        sotp_max = val.get("sotp_max", None)
+        df_history = pd.DataFrame()  # 恒玄暂无历史数据
     else:
         val = run_alibaba_valuation(
             rf=rf_val, beta=beta, tg=tg, current_price=current_price,
