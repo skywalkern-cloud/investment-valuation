@@ -1209,7 +1209,7 @@ def main():
 
     st.markdown("---")
     render_heatmap(
-        val["fcf_proj"],
+        val.get("fcf_proj", [0, 0, 0, 0, 0]),
         shares=stock_info["shares"],
         currency_symbol=currency_symbol
     )
