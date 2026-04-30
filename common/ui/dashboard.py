@@ -512,64 +512,33 @@ def run_lens_valuation(
     cost_of_debt: float = 0.05, tax_rate: float = 0.15, debt_ratio: float = 0.3
 ) -> Dict[str, Any]:
     """蓝思科技(HK06613)估值计算"""
+    import sys
+    import importlib.machinery
     import warnings
     from pathlib import Path
     warnings.filterwarnings('ignore')
 
     repo_root = Path(__file__).parent.parent.parent
+    sys.path.insert(0, str(repo_root))
+    sys.path.insert(0, str(repo_root / 'stocks' / '300433_lens'))
 
     try:
-        LensHK_SOTP = _import_stock_model('300433_lens', 'LensHK_SOTP')
-        if LensHK_SOTP is None:
-            raise ImportError("cannot import LensHK_SOTP from stocks.300433_lens.model")
+        from model import LensHK_SOTP
         sotp = LensHK_SOTP.from_config()
         sotp_result = sotp.calculate(current_price)
-
-        # DCF (简化)
-        total_nm = sotp_result.get('total_net_profit', 0)
-        shares = sotp_result.get('shares', 52.79)
-        wacc = rf + beta * 0.07
-        growth_rates = [0.15, 0.18, 0.20, 0.18, 0.15]
-        fcf_conv = 0.70
-        fcf_proj = [round(total_nm * (1 + g) * fcf_conv, 2) for g in growth_rates]
-
-        engine = DiscountingEngine()
-        dcf_res = engine.compute_dcf(
-            fcf_projections=fcf_proj,
-            terminal_fcf=fcf_proj[-1] * 1.03,
-            wacc=wacc,
-            net_debt=0.0,
-            shares=shares,
-            terminal_growth=tg,
-        )
-        dcf_price = dcf_res['目标价_元']
-
         return {
-            "sotp_price": sotp_result.get('target_base_hkd', 0),
-            "sotp_min": sotp_result.get('target_min_hkd', None),
-            "sotp_max": sotp_result.get('target_max_hkd', None),
-            "dcf_price": dcf_price,
-            "weighted_price": sotp_result.get('weighted_price_hkd', None),
+            "sotp_price": sotp_result['target_base'],
+            "sotp_min": sotp_result.get('target_min', None),
+            "sotp_max": sotp_result.get('target_max', None),
+            "dcf_price": sotp_result.get('dcf_price', 0),
+            "weighted_price": sotp_result.get('weighted_price', None),
             "current_price": current_price,
-            "sotp_detail": sotp.get_sotp_detail(),
-            "fcf_proj": fcf_proj,
-            "sotp_cap_base": sotp_result.get('sotp_cap_base_hkd', 0),
-            "wacc": wacc,
-            "wacc_pct": wacc * 100,
+            "sotp_detail": sotp_result,
         }
     except Exception as e:
         st.error(f"⚠️ 蓝思科技估值计算失败: {str(e)[:200]}")
-        return {"sotp_price": 0, "dcf_price": 0, "current_price": current_price, "fcf_proj": [0, 0, 0, 0, 0]}
+        return {"sotp_price": 0, "dcf_price": 0, "current_price": current_price}
 
-
-
-def _import_stock_model(stock_dir: str, class_name: str):
-    """动态导入股票模型类，避免sys.modules缓存冲突"""
-    import importlib
-    try:
-        return getattr(importlib.import_module(f'stocks.{stock_dir}.model'), class_name)
-    except (ModuleNotFoundError, AttributeError):
-        return None
 
 
 def run_hengxuan_valuation(
@@ -583,11 +552,12 @@ def run_hengxuan_valuation(
     warnings.filterwarnings('ignore')
 
     repo_root = Path(__file__).parent.parent.parent
+    sys.path.insert(0, str(repo_root))
+    sys.path.insert(0, str(repo_root / 'stocks' / '688608_hengxuan'))
+    sys.path.insert(0, str(repo_root / 'common'))
 
     try:
-        HengxuanSOTP = _import_stock_model('688608_hengxuan', 'HengxuanSOTP')
-        if HengxuanSOTP is None:
-            raise ImportError("cannot import HengxuanSOTP from stocks.688608_hengxuan.model")
+        from model import HengxuanSOTP
         from common.core.discounting_engine import DiscountingEngine
         from common.core.probability_weight import ProbabilityWeightEngine
 
@@ -781,15 +751,15 @@ def render_soccer(sotp_price: float, dcf_price: float, current_price: float,
     cols = st.columns(4)
     delta_color = "inverse"
     with cols[0]:
-        delta_sotp = f"{((sotp_price or 0)/(current_price or 1)-1)*100:.0f}%" if (current_price or 1) > 0 else "N/A"
-        st.metric("SOTP", f"{(sotp_price or 0):.1f}{currency_symbol}", delta=delta_sotp, delta_color=delta_color)
+        delta_sotp = f"{(sotp_price/current_price-1)*100:.0f}%" if current_price > 0 else "N/A"
+        st.metric("SOTP", f"{sotp_price:.1f}{currency_symbol}", delta=delta_sotp, delta_color=delta_color)
     with cols[1]:
-        delta_dcf = f"{((dcf_price or 0)/(current_price or 1)-1)*100:.0f}%" if (current_price or 1) > 0 else "N/A"
-        st.metric("DCF", f"{(dcf_price or 0):.1f}{currency_symbol}", delta=delta_dcf, delta_color=delta_color)
+        delta_dcf = f"{(dcf_price/current_price-1)*100:.0f}%" if current_price > 0 else "N/A"
+        st.metric("DCF", f"{dcf_price:.1f}{currency_symbol}", delta=delta_dcf, delta_color=delta_color)
     with cols[2]:
         st.metric("PE×20", f"{current_price*0.4:.1f}{currency_symbol}")
     with cols[3]:
-        st.metric("当前价", f"{(current_price or 0):.1f}{currency_symbol}", delta="基准")
+        st.metric("当前价", f"{current_price:.1f}{currency_symbol}", delta="基准")
 
 
 # ========== 敏感度热力图 ==========
@@ -817,19 +787,19 @@ def render_heatmap(fcf_proj: List[float], shares: float = 6.53, currency_symbol:
 # ========== 情绪偏差 ==========
 def render_sentiment(target: float, current: float, currency_symbol: str = "¥"):
     st.markdown('<p class="section-header">🎭 情绪偏差监测</p>', unsafe_allow_html=True)
-    pv = (current or 0) / (target or 1) if (target or 1) > 0 else 0
+    pv = current / target if target > 0 else 0
 
     c1, c2, c3 = st.columns(3)
     with c1:
-        st.metric("P/V比率", f"{(pv or 0):.2f}x", help="当前价/目标价，大于1高估")
+        st.metric("P/V比率", f"{pv:.2f}x", help="当前价/目标价，大于1高估")
     with c2:
-        st.metric("目标价", f"{(target or 0):.1f}{currency_symbol}")
+        st.metric("目标价", f"{target:.1f}{currency_symbol}")
     with c3:
-        st.metric("当前价", f"{(current or 0):.1f}{currency_symbol}")
+        st.metric("当前价", f"{current:.1f}{currency_symbol}")
 
     badge = "🔴 严重高估" if pv > 1.5 else "🟠 偏高" if pv > 1.2 else "🟢 合理" if pv > 0.8 else "🔵 偏低"
     st.markdown(f"**状态**: {badge}")
-    st.progress(min(max(1/(pv or 1), 0), 1) if (pv or 1) > 0 else 0)
+    st.progress(min(max(1/pv, 0), 1) if pv > 0 else 0)
 
 
 # ========== SOTP详情（阿里巴巴） ==========
@@ -857,14 +827,14 @@ def render_sotp_detail(sotp_detail: Dict[str, Any], currency_symbol: str = "HK$"
 
     col1, col2, col3, col4 = st.columns(4)
     with col1:
-        st.metric("控股权益(亿)", f"¥{(holdings or 0):.0f}")
+        st.metric("控股权益(亿)", f"¥{holdings:.0f}")
     with col2:
-        st.metric("总市值中枢(亿)", f"¥{(total_mid or 0):.0f}")
+        st.metric("总市值中枢(亿)", f"¥{total_mid:.0f}")
     with col3:
-        st.metric("SOTP目标价区间", f"{(sotp_min or 0):.0f}~{(sotp_max or 0):.0f}{currency_symbol}")
+        st.metric("SOTP目标价区间", f"{sotp_min:.0f}~{sotp_max:.0f}{currency_symbol}")
     with col4:
         upside = sotp_detail.get('上涨空间_中枢_%', 0)
-        st.metric("上涨空间", f"{(upside or 0):+.0f}%")
+        st.metric("上涨空间", f"{upside:+.0f}%")
 
 
 # ========== 历史数据加载 ==========
@@ -1047,6 +1017,14 @@ def main():
         st.markdown("**【半导体分部：磷化铟(InP)衬底】**")
         st.markdown(f"""
         | 参数 | 值 |
+        # Precompute upside for 002428
+        _sotp_002428 = val.get("sotp_price", 0) or 0
+        _current_002428 = val.get("current_price", 0) or 0
+        if _current_002428 > 0:
+            _upside_002428 = (_sotp_002428 / _current_002428 - 1) * 100
+        else:
+            _upside_002428 = -100
+        | 参数 | 值 |
         |---|---|
         | 产能 | 15万片/年 |
         | 利用率 | 100% (订单超产能) |
@@ -1055,7 +1033,7 @@ def main():
         | 净利率 | 24% (制造费用折算) |
         | 净利润 | **{val.get('semi_nm', 0):.2f}亿元** |
         | PE区间 | 60-80x (AI材料稀缺溢价) |
-        | 市值区间 | {(val.get('semi_nm', 0) or 0)*60:.1f} ~ {(val.get('semi_nm', 0) or 0)*80:.1f}亿元 |
+        | 市值区间 | {val.get('semi_nm', 0)*60:.1f} ~ {val.get('semi_nm', 0)*80:.1f}亿元 |
         """)
         # 传统业务
         st.markdown("**【传统业务：锗矿开采冶炼】**")
@@ -1069,7 +1047,7 @@ def main():
         | 净利率 | 30% |
         | 净利润 | **{trad_nm:.2f}亿元** |
         | PE区间 | 15-20x (传统业务折价) |
-        | 市值区间 | {(trad_nm or 0)*15:.1f} ~ {(trad_nm or 0)*20:.1f}亿元 |
+        | 市值区间 | {trad_nm*15:.1f} ~ {trad_nm*20:.1f}亿元 |
         """)
         # SOTP合计
         st.markdown("**【SOTP合计】**")
@@ -1081,88 +1059,13 @@ def main():
         st.markdown(f"""
         | 指标 | 值 |
         |---|---|
-        | 半导体市值 | {(semi_cap or 0):.1f}亿元 |
-        | 传统业务市值 | {(trad_cap or 0):.1f}亿元 |
-        | SOTP总市值 | {((semi_cap or 0)+(trad_cap or 0)):.1f}亿元 |
-        | 目标价区间 | {(sotp_min_total or 0):.1f} ~ {(sotp_max_total or 0):.1f}元 |
+        | 半导体市值 | {semi_cap:.1f}亿元 |
+        | 传统业务市值 | {trad_cap:.1f}亿元 |
+        | SOTP总市值 | {semi_cap+trad_cap:.1f}亿元 |
+        | 目标价区间 | {sotp_min_total:.1f} ~ {sotp_max_total:.1f}元 |
         | 目标价中枢 | **{val.get('sotp_price', 0):.1f}元** |
         | 当前价 | {val.get('current_price', 0):.2f}元 |
-        | 上涨空间 | {(((val.get('sotp_price', 0) or 0)/(val.get('current_price', 1) or 1)-1)*100:+.0f}% |
-        """)
-
-    # 688608: SOTP分部分说明
-    if selected == "688608":
-        st.markdown("---")
-        st.markdown('<p class="section-header">📊 SOTP分部分说明（恒玄科技688608）</p>', unsafe_allow_html=True)
-
-        # 数据来源
-        st.markdown("""**【数据来源】**
-        - 实时股价: 腾讯行情 API (`sh688608`)
-        - 历史财务/分部数据: [雪球](https://xueqiu.com/S/SH688608) · [东方财富](https://data.eastmoney.com/stockData/688608.html)
-        - 2025年报: [上交所披露](https://www.sse.com.cn) (搜索: 688608)
-        - 机构预测: 雪球/东财研报综合
-        """)
-
-        sotp_detail = val.get('sotp_detail', {})
-        segments = sotp_detail.get('segments', [])
-        if not segments:
-            st.warning(f"⚠️ sotp_detail无segments数据（sotp_detail keys: {list(sotp_detail.keys())}）")
-        for seg in segments:
-            st.markdown(f"""
-            **【{seg['name']}】**
-            | 参数 | 值 |
-            |---|---|
-            | 收入(CNY) | **{seg['revenue_cny']:.1f}亿元** |
-            | 净利率 | {seg['net_margin']*100:.0f}% |
-            | 净利润(CNY) | **{seg['net_profit_cny']:.2f}亿元** |
-            | PE区间 | {seg['pe_range']} (中枢{seg['pe_base']}x) |
-            | 市值(CNY) | **{seg['cap_base']:.1f}亿元** ({seg['pct']}) |
-            """)
-
-        # SOTP合计
-        if segments:
-            total_nm = sotp_detail.get('total_net_profit', 0)
-            sotp_cap = val.get('sotp_cap_base', 0)
-            st.markdown(f"""
-            **【SOTP合计】**
-            | 指标 | 值 |
-            |---|---|
-            | 总净利润(CNY) | **{(total_nm or 0):.2f}亿元** (含合并调整{(sotp_detail.get('profit_adjustment', 0) or 0):.2f}亿) |
-            | SOTP总市值(CNY) | **{(sotp_cap or 0):.1f}亿元** |
-            | 当前价(CNY) | {(val.get('current_price', 0) or 0):.2f}元 |
-            | SOTP目标价区间 | {(val.get('sotp_min', 0) or 0):.1f} ~ {(val.get('sotp_max', 0) or 0):.1f}元 |
-            | SOTP目标价中枢 | **{(val.get('sotp_price', 0) or 0):.1f}元** |
-            | 上涨空间 | {((val.get('sotp_price', 0) or 0)/(val.get('current_price', 1) or 1)-1)*100:+.1f}% |
-            """)
-
-        # 概率加权说明
-        st.markdown("---")
-        st.markdown('<p class="section-header">🎲 概率加权估值说明</p>', unsafe_allow_html=True)
-        sotp_cap = val.get('sotp_cap_base', 326.6) or 0
-        weighted_price = val.get('weighted_price', 0) or 0
-        weighted_cap = weighted_price * 1.69 if weighted_price else 0
-        multiplier = weighted_cap / sotp_cap if sotp_cap > 0 else 0
-        st.markdown(f"""
-        **【概率加权公式】**  
-        调整后市值 = SOTP基准市值 × Π(1 + (magnitude_i - 1) × probability_i)  
-        目标价 = 调整后市值 ÷ 总股本(1.69亿股)
-
-        **【事件拆解】**
-        | 事件 | 概率 | magnitude | 贡献 | 解读 |
-        |---|---|---|---|---|
-        | TWS耳机市场复苏 | 70% | 1.15 | +10.5% | prob×(1.15-1) |
-        | AI眼镜放量 | 50% | 1.25 | +12.5% | prob×(1.25-1) |
-        | 汽车芯片通过认证 | 40% | 1.12 | +4.8% | prob×(1.12-1) |
-        | WiFi6芯片量产 | 45% | 1.18 | +8.1% | prob×(1.18-1) |
-        | **综合乘数** | — | — | **{multiplier:.3f}x** | 4项正向事件叠加 |
-
-        **【概率加权结果】**
-        | 指标 | 值 |
-        |---|---|
-        | SOTP基准市值 | **{(sotp_cap or 0):.1f}亿元** |
-        | 综合乘数 | **{multiplier:.3f}x** |
-        | 概率加权市值 | **{weighted_cap:.1f}亿元** |
-        | 概率加权目标价 | **{(weighted_price or 0):.1f}元** |
+        | 上涨空间 | {(val.get('sotp_price',0)/val.get('current_price',1)-1)*100:+.0f}% |
         """)
 
     # 06613: SOTP分部分说明
@@ -1190,12 +1093,12 @@ def main():
             **【SOTP合计】**
             | 指标 | 值 |
             |---|---|
-            | 总净利润(HKD) | **{(total_nm or 0):.2f}亿元** (含合并调整{(sotp_detail.get('profit_adjustment', 0) or 0):.1f}亿) |
-            | SOTP总市值(HKD) | **{(sotp_cap or 0):.1f}亿元** |
-            | 当前价(HKD) | {(val.get('current_price', 0) or 0):.2f} |
-            | 上涨空间 | {((val.get('sotp_price', 0) or 0)/(val.get('current_price', 1) or 1)*100-100:+.1f}% |
-            | DCF目标价 | {(val.get('dcf_price', 0) or 0):.2f} HKD ({(val.get('dcf_price', 0) or 0)*(val.get('hkd_cny_rate', 0.92) or 0.92):.2f} CNY) |
-            | 概率加权 | {(val.get('weighted_price', 0) or 0):.2f} HKD |
+            | 总净利润(HKD) | **{total_nm:.2f}亿元** (含合并调整{sotp_detail.get('profit_adjustment', 0):.1f}亿) |
+            | SOTP总市值(HKD) | **{sotp_cap:.1f}亿元** |
+            | 当前价(HKD) | {val.get('current_price', 0):.2f} |
+            | 上涨空间 | {val.get('sotp_price', 0)/val.get('current_price', 1)*100-100:+.1f}% |
+            | DCF目标价 | {val.get('dcf_price', 0):.2f} HKD ({val.get('dcf_price', 0)*val.get('hkd_cny_rate', 0.92):.2f} CNY) |
+            | 概率加权 | {(val.get('weighted_price') or 0):.2f} HKD |
             """)
 
     # 09988: 端到端敏感性分析展示
@@ -1239,7 +1142,7 @@ def main():
 
     st.markdown("---")
     render_heatmap(
-        val.get("fcf_proj", [0, 0, 0, 0, 0]),
+        val["fcf_proj"],
         shares=stock_info["shares"],
         currency_symbol=currency_symbol
     )
