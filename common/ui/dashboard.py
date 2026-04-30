@@ -789,7 +789,7 @@ def render_soccer(sotp_price: float, dcf_price: float, current_price: float,
     with cols[2]:
         st.metric("PE×20", f"{current_price*0.4:.1f}{currency_symbol}")
     with cols[3]:
-        st.metric("当前价", f"{current_price:.1f}{currency_symbol}", delta="基准")
+        st.metric("当前价", f"{(current_price or 0):.1f}{currency_symbol}", delta="基准")
 
 
 # ========== 敏感度热力图 ==========
@@ -817,19 +817,19 @@ def render_heatmap(fcf_proj: List[float], shares: float = 6.53, currency_symbol:
 # ========== 情绪偏差 ==========
 def render_sentiment(target: float, current: float, currency_symbol: str = "¥"):
     st.markdown('<p class="section-header">🎭 情绪偏差监测</p>', unsafe_allow_html=True)
-    pv = current / target if target > 0 else 0
+    pv = (current or 0) / (target or 1) if (target or 1) > 0 else 0
 
     c1, c2, c3 = st.columns(3)
     with c1:
-        st.metric("P/V比率", f"{pv:.2f}x", help="当前价/目标价，大于1高估")
+        st.metric("P/V比率", f"{(pv or 0):.2f}x", help="当前价/目标价，大于1高估")
     with c2:
-        st.metric("目标价", f"{target:.1f}{currency_symbol}")
+        st.metric("目标价", f"{(target or 0):.1f}{currency_symbol}")
     with c3:
-        st.metric("当前价", f"{current:.1f}{currency_symbol}")
+        st.metric("当前价", f"{(current or 0):.1f}{currency_symbol}")
 
     badge = "🔴 严重高估" if pv > 1.5 else "🟠 偏高" if pv > 1.2 else "🟢 合理" if pv > 0.8 else "🔵 偏低"
     st.markdown(f"**状态**: {badge}")
-    st.progress(min(max(1/pv, 0), 1) if pv > 0 else 0)
+    st.progress(min(max(1/(pv or 1), 0), 1) if (pv or 1) > 0 else 0)
 
 
 # ========== SOTP详情（阿里巴巴） ==========
@@ -857,14 +857,14 @@ def render_sotp_detail(sotp_detail: Dict[str, Any], currency_symbol: str = "HK$"
 
     col1, col2, col3, col4 = st.columns(4)
     with col1:
-        st.metric("控股权益(亿)", f"¥{holdings:.0f}")
+        st.metric("控股权益(亿)", f"¥{(holdings or 0):.0f}")
     with col2:
-        st.metric("总市值中枢(亿)", f"¥{total_mid:.0f}")
+        st.metric("总市值中枢(亿)", f"¥{(total_mid or 0):.0f}")
     with col3:
-        st.metric("SOTP目标价区间", f"{sotp_min:.0f}~{sotp_max:.0f}{currency_symbol}")
+        st.metric("SOTP目标价区间", f"{(sotp_min or 0):.0f}~{(sotp_max or 0):.0f}{currency_symbol}")
     with col4:
         upside = sotp_detail.get('上涨空间_中枢_%', 0)
-        st.metric("上涨空间", f"{upside:+.0f}%")
+        st.metric("上涨空间", f"{(upside or 0):+.0f}%")
 
 
 # ========== 历史数据加载 ==========
@@ -1055,7 +1055,7 @@ def main():
         | 净利率 | 24% (制造费用折算) |
         | 净利润 | **{val.get('semi_nm', 0):.2f}亿元** |
         | PE区间 | 60-80x (AI材料稀缺溢价) |
-        | 市值区间 | {val.get('semi_nm', 0)*60:.1f} ~ {val.get('semi_nm', 0)*80:.1f}亿元 |
+        | 市值区间 | {(val.get('semi_nm', 0) or 0)*60:.1f} ~ {(val.get('semi_nm', 0) or 0)*80:.1f}亿元 |
         """)
         # 传统业务
         st.markdown("**【传统业务：锗矿开采冶炼】**")
@@ -1069,7 +1069,7 @@ def main():
         | 净利率 | 30% |
         | 净利润 | **{trad_nm:.2f}亿元** |
         | PE区间 | 15-20x (传统业务折价) |
-        | 市值区间 | {trad_nm*15:.1f} ~ {trad_nm*20:.1f}亿元 |
+        | 市值区间 | {(trad_nm or 0)*15:.1f} ~ {(trad_nm or 0)*20:.1f}亿元 |
         """)
         # SOTP合计
         st.markdown("**【SOTP合计】**")
@@ -1081,13 +1081,13 @@ def main():
         st.markdown(f"""
         | 指标 | 值 |
         |---|---|
-        | 半导体市值 | {semi_cap:.1f}亿元 |
-        | 传统业务市值 | {trad_cap:.1f}亿元 |
-        | SOTP总市值 | {semi_cap+trad_cap:.1f}亿元 |
-        | 目标价区间 | {sotp_min_total:.1f} ~ {sotp_max_total:.1f}元 |
+        | 半导体市值 | {(semi_cap or 0):.1f}亿元 |
+        | 传统业务市值 | {(trad_cap or 0):.1f}亿元 |
+        | SOTP总市值 | {((semi_cap or 0)+(trad_cap or 0)):.1f}亿元 |
+        | 目标价区间 | {(sotp_min_total or 0):.1f} ~ {(sotp_max_total or 0):.1f}元 |
         | 目标价中枢 | **{val.get('sotp_price', 0):.1f}元** |
         | 当前价 | {val.get('current_price', 0):.2f}元 |
-        | 上涨空间 | {(val.get('sotp_price',0)/val.get('current_price',1)-1)*100:+.0f}% |
+        | 上涨空间 | {(((val.get('sotp_price', 0) or 0)/(val.get('current_price', 1) or 1)-1)*100:+.0f}% |
         """)
 
     # 688608: SOTP分部分说明
