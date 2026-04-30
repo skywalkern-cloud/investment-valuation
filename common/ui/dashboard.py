@@ -811,6 +811,57 @@ def main():
         st.markdown("---")
         render_sotp_detail(val["sotp_detail"], currency_symbol=currency_symbol)
 
+    # 002428: SOTP分部分说明
+    if selected == "002428":
+        st.markdown("---")
+        st.markdown('<p class="section-header">📊 SOTP分部分说明</p>', unsafe_allow_html=True)
+        # 半导体分部
+        st.markdown("**【半导体分部：磷化铟(InP)衬底】**")
+        st.markdown(f"""
+        | 参数 | 值 |
+        |---|---|
+        | 产能 | 15万片/年 |
+        | 利用率 | 100% (订单超产能) |
+        | InP均价 | 2.65万元/片 |
+        | 收入 | 15 × 1.0 × 2.65 = **{val.get('inp_revenue', 39.75):.2f}亿元** |
+        | 净利率 | 24% (制造费用折算) |
+        | 净利润 | **{val.get('semi_nm', 0):.2f}亿元** |
+        | PE区间 | 60-80x (AI材料稀缺溢价) |
+        | 市值区间 | {val.get('semi_nm', 0)*60:.1f} ~ {val.get('semi_nm', 0)*80:.1f}亿元 |
+        """)
+        # 传统业务
+        st.markdown("**【传统业务：锗矿开采冶炼】**")
+        trad_nm = val.get('trad_nm', 0)
+        st.markdown(f"""
+        | 参数 | 值 |
+        |---|---|
+        | 产量 | 30吨/年 |
+        | 锗价 | 1.775万元/公斤 (市场价17750元/kg) |
+        | 收入 | 53.25亿元 |
+        | 净利率 | 30% |
+        | 净利润 | **{trad_nm:.2f}亿元** |
+        | PE区间 | 15-20x (传统业务折价) |
+        | 市值区间 | {trad_nm*15:.1f} ~ {trad_nm*20:.1f}亿元 |
+        """)
+        # SOTP合计
+        st.markdown("**【SOTP合计】**")
+        sotp_cap = val.get('sotp_price', 0) * 6.53
+        semi_cap = val.get('semi_nm', 0) * 70
+        trad_cap = val.get('trad_nm', 0) * 18
+        sotp_min_total = (val.get('semi_nm', 0)*60 + trad_nm*15) / 6.53
+        sotp_max_total = (val.get('semi_nm', 0)*80 + trad_nm*20) / 6.53
+        st.markdown(f"""
+        | 指标 | 值 |
+        |---|---|
+        | 半导体市值 | {semi_cap:.1f}亿元 |
+        | 传统业务市值 | {trad_cap:.1f}亿元 |
+        | SOTP总市值 | {semi_cap+trad_cap:.1f}亿元 |
+        | 目标价区间 | {sotp_min_total:.1f} ~ {sotp_max_total:.1f}元 |
+        | 目标价中枢 | **{val.get('sotp_price', 0):.1f}元** |
+        | 当前价 | {val.get('current_price', 0):.2f}元 |
+        | 上涨空间 | {(val.get('sotp_price',0)/val.get('current_price',1)-1)*100:+.0f}% |
+        """)
+
     # 09988: 端到端敏感性分析展示
     if selected == "09988" and val.get("sensitivity"):
         st.markdown("---")
