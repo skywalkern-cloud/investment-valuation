@@ -1,0 +1,117 @@
+# 蓝思科技(300433) 估值模型配置
+# SOTP + DCF + 概率加权估值
+
+meta:
+  stock_code: "300433"
+  stock_name: "蓝思科技"
+  market: "A"
+  total_shares: 52.79
+  last_updated: "2026-04-30"
+  current_price: 25.72
+  current_market_cap: 1357
+
+events:
+  - name: "AI手机换机潮带动玻璃盖板需求"
+    probability: 0.70
+    impact: "positive"
+    magnitude: 1.20
+    description: "苹果/安卓旗舰AI功能落地，刺激换机需求，玻璃用量增加"
+
+  - name: "VR/AR产品放量"
+    probability: 0.50
+    impact: "positive"
+    magnitude: 1.15
+    description: "Apple Vision Pro迭代/Meta Quest 4等VR/AR产品上量"
+
+  - name: "汽车中控玻璃业务突破"
+    probability: 0.40
+    impact: "positive"
+    magnitude: 1.10
+    description: "新能源车中控屏渗透率提升，ASP是手机3-5倍"
+
+  - name: "消费电子需求持续疲软"
+    probability: 0.35
+    impact: "negative"
+    magnitude: 0.85
+    description: "手机市场连续下滑，出货量不及预期"
+
+  - name: "竞争加剧导致净利率下滑"
+    probability: 0.30
+    impact: "negative"
+    magnitude: 0.80
+    description: "行业竞争恶化，净利率从5.5%跌破4%"
+
+plugins:
+  - type: "electronics"
+    name: "消费电子玻璃主业"
+    weight: 0.75
+    pe_min: 12
+    pe_max: 18
+    pe_base: 18
+    note: "手机/平板玻璃盖板，核心客户苹果+安卓旗舰；PE给18x反映龙头溢价"
+
+  - type: "electronics"
+    name: "VR/AR/可穿戴"
+    weight: 0.13
+    pe_min: 10
+    pe_max: 20
+    pe_base: 15
+    note: "Apple Vision/Meta Quest/智能手表，2026年望放量；净利率5%反映规模效应未兑现"
+
+  - type: "electronics"
+    name: "汽车电子"
+    weight: 0.08
+    pe_min: 18
+    pe_max: 28
+    pe_base: 22
+    note: "新能源车中控屏、仪表盘玻璃，增速快但体量小；PE给22x反映高增速"
+
+  - type: "electronics"
+    name: "其他（陶瓷/蓝宝石/金属）"
+    weight: 0.04
+    pe_min: 8
+    pe_max: 14
+    pe_base: 10
+    note: "陶瓷/蓝宝石/金属小件等"
+
+methodology_notes:
+  valuation_notes: |
+    【定位说明】
+    SOTP基准估值（13-17元）是保守估值，适合作为价值锚。
+    当前市场价25.72元约等于PE 35x，反映市场对AI驱动换机潮的乐观预期。
+    两者差异不是模型错误，而是保守SOTP基准 vs 市场成长溢价的正常偏离。
+    
+    【收入拆分说明】
+    558亿玻璃主业 = 手机玻璃 + 平板/笔记本玻璃 + 智能手表玻璃
+    95亿VR/可穿戴 = Apple Vision/Meta Quest/其他AR眼镜
+    60亿汽车电子 = 新能源车中控屏 + 仪表盘 + 触控传感器
+    31亿其他 = 陶瓷/蓝宝石外观件 + 金属小件
+    
+    【净利缺口说明】
+    模型净利合计（调整前43.67亿）vs 年报归母净利40.18亿，差距3.49亿。
+    原因：母子公司关联交易利润在合并报表时抵消。
+    config中profit_adjustment = -3.5亿作为调整项。
+
+  terminal_growth:
+    value: 0.03
+    assumption: "消费电子行业成熟，增速约等于CPI+手机出货量增速"
+
+  wacc:
+    risk_free_rate:
+      source: "10年期国债收益率"
+      auto: true
+      fallback: 0.030
+    beta:
+      value: 1.10
+      source: "历史Beta (1年滚动)，消费电子属于高贝塔周期股"
+      last_updated: "2026-04-30"
+      expiry_days: 90
+    market_premium: 0.07
+    cost_of_debt: 0.050
+
+sensitivity_analysis:
+  sotp_params:
+    消费电子净利: [25, 33, 40, 48]
+    VR/AR净利: [0, 3, 6, 10]
+  dcf_wacc_range: [0.075, 0.085, 0.095]
+  dcf_tg_range: [0.02, 0.03, 0.04]
