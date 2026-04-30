@@ -519,11 +519,11 @@ def run_lens_valuation(
     warnings.filterwarnings('ignore')
 
     repo_root = Path(__file__).parent.parent.parent
-    sys.path.insert(0, str(repo_root))
-    sys.path.insert(0, str(repo_root / 'stocks' / '300433_lens'))
 
     try:
-        from model import LensHK_SOTP
+        LensHK_SOTP = _import_stock_model('300433_lens', 'LensHK_SOTP')
+        if LensHK_SOTP is None:
+            raise ImportError("cannot import LensHK_SOTP from stocks.300433_lens.model")
         sotp = LensHK_SOTP.from_config()
         sotp_result = sotp.calculate(current_price)
         return {
@@ -541,6 +541,15 @@ def run_lens_valuation(
 
 
 
+def _import_stock_model(stock_dir: str, class_name: str):
+    """动态导入股票模型类，避免sys.modules缓存冲突"""
+    import importlib
+    try:
+        return getattr(importlib.import_module(f'stocks.{stock_dir}.model'), class_name)
+    except (ModuleNotFoundError, AttributeError):
+        return None
+
+
 def run_hengxuan_valuation(
     rf: float, beta: float, tg: float, current_price: float,
     cost_of_debt: float = 0.04, tax_rate: float = 0.15, debt_ratio: float = 0.2
@@ -552,12 +561,11 @@ def run_hengxuan_valuation(
     warnings.filterwarnings('ignore')
 
     repo_root = Path(__file__).parent.parent.parent
-    sys.path.insert(0, str(repo_root))
-    sys.path.insert(0, str(repo_root / 'stocks' / '688608_hengxuan'))
-    sys.path.insert(0, str(repo_root / 'common'))
 
     try:
-        from model import HengxuanSOTP
+        HengxuanSOTP = _import_stock_model('688608_hengxuan', 'HengxuanSOTP')
+        if HengxuanSOTP is None:
+            raise ImportError("cannot import HengxuanSOTP from stocks.688608_hengxuan.model")
         from common.core.discounting_engine import DiscountingEngine
         from common.core.probability_weight import ProbabilityWeightEngine
 
