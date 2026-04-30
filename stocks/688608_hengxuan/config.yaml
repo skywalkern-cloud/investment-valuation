@@ -1,6 +1,13 @@
 # 恒玄科技(688608) SOTP估值模型 - 配置文件
 # 科创板音频芯片龙头，A股（CNY）
 # 最后一更新: 2026-04-30
+#
+# 数据来源:
+#   - 实时股价: 腾讯行情 API (sh688608)
+#   - 历史财务: 雪球 https://xueqiu.com/S/SH688608
+#   - 分部营收: 东方财富 https://data.eastmoney.com/stockData/688608.html
+#   - 2025年报: 上交所 https://www.sse.com.cn (搜索: 688608 年度报告)
+#   - 机构预测: 雪球/东财研报综合
 
 stock_info:
   name: 恒玄科技

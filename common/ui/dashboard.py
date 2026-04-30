@@ -1064,6 +1064,15 @@ def main():
     if selected == "688608":
         st.markdown("---")
         st.markdown('<p class="section-header">📊 SOTP分部分说明（恒玄科技688608）</p>', unsafe_allow_html=True)
+
+        # 数据来源
+        st.markdown("""**【数据来源】**
+        - 实时股价: 腾讯行情 API (`sh688608`)
+        - 历史财务/分部数据: [雪球](https://xueqiu.com/S/SH688608) · [东方财富](https://data.eastmoney.com/stockData/688608.html)
+        - 2025年报: [上交所披露](https://www.sse.com.cn) (搜索: 688608)
+        - 机构预测: 雪球/东财研报综合
+        """)
+
         sotp_detail = val.get('sotp_detail', {})
         segments = sotp_detail.get('segments', [])
         if not segments:
@@ -1079,6 +1088,7 @@ def main():
             | PE区间 | {seg['pe_range']} (中枢{seg['pe_base']}x) |
             | 市值(CNY) | **{seg['cap_base']:.1f}亿元** ({seg['pct']}) |
             """)
+
         # SOTP合计
         if segments:
             total_nm = sotp_detail.get('total_net_profit', 0)
@@ -1093,9 +1103,37 @@ def main():
             | SOTP目标价区间 | {val.get('sotp_min', 0):.1f} ~ {val.get('sotp_max', 0):.1f}元 |
             | SOTP目标价中枢 | **{val.get('sotp_price', 0):.1f}元** |
             | 上涨空间 | {(val.get('sotp_price',0)/val.get('current_price',1)-1)*100:+.1f}% |
-            | DCF目标价 | {val.get('dcf_price', 0):.1f}元 |
-            | 概率加权 | {val.get('weighted_price', 0):.1f}元 |
             """)
+
+        # 概率加权说明
+        st.markdown("---")
+        st.markdown('<p class="section-header">🎲 概率加权估值说明</p>', unsafe_allow_html=True)
+        sotp_cap = val.get('sotp_cap_base', 326.6)
+        weighted_price = val.get('weighted_price', 0)
+        weighted_cap = weighted_price * 1.69 if weighted_price else 0
+        multiplier = weighted_cap / sotp_cap if sotp_cap > 0 else 0
+        st.markdown(f"""
+        **【概率加权公式】**  
+        调整后市值 = SOTP基准市值 × Π(1 + (magnitude_i - 1) × probability_i)  
+        目标价 = 调整后市值 ÷ 总股本(1.69亿股)
+
+        **【事件拆解】**
+        | 事件 | 概率 | magnitude | 贡献 | 解读 |
+        |---|---|---|---|---|
+        | TWS耳机市场复苏 | 70% | 1.15 | +10.5% | prob×(1.15-1) |
+        | AI眼镜放量 | 50% | 1.25 | +12.5% | prob×(1.25-1) |
+        | 汽车芯片通过认证 | 40% | 1.12 | +4.8% | prob×(1.12-1) |
+        | WiFi6芯片量产 | 45% | 1.18 | +8.1% | prob×(1.18-1) |
+        | **综合乘数** | — | — | **{multiplier:.3f}x** | 4项正向事件叠加 |
+
+        **【概率加权结果】**
+        | 指标 | 值 |
+        |---|---|
+        | SOTP基准市值 | **{sotp_cap:.1f}亿元** |
+        | 综合乘数 | **{multiplier:.3f}x** |
+        | 概率加权市值 | **{weighted_cap:.1f}亿元** |
+        | 概率加权目标价 | **{weighted_price:.1f}元** |
+        """)
 
     # 06613: SOTP分部分说明
     if selected == "06613":
