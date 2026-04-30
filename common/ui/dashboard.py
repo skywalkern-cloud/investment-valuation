@@ -512,8 +512,6 @@ def run_lens_valuation(
     cost_of_debt: float = 0.05, tax_rate: float = 0.15, debt_ratio: float = 0.3
 ) -> Dict[str, Any]:
     """蓝思科技(HK06613)估值计算"""
-    import sys
-    import importlib.machinery
     import warnings
     from pathlib import Path
     warnings.filterwarnings('ignore')
@@ -526,18 +524,42 @@ def run_lens_valuation(
             raise ImportError("cannot import LensHK_SOTP from stocks.300433_lens.model")
         sotp = LensHK_SOTP.from_config()
         sotp_result = sotp.calculate(current_price)
+
+        # DCF (简化)
+        total_nm = sotp_result.get('total_net_profit', 0)
+        shares = sotp_result.get('shares', 52.79)
+        wacc = rf + beta * 0.07
+        growth_rates = [0.15, 0.18, 0.20, 0.18, 0.15]
+        fcf_conv = 0.70
+        fcf_proj = [round(total_nm * (1 + g) * fcf_conv, 2) for g in growth_rates]
+
+        engine = DiscountingEngine()
+        dcf_res = engine.compute_dcf(
+            fcf_projections=fcf_proj,
+            terminal_fcf=fcf_proj[-1] * 1.03,
+            wacc=wacc,
+            net_debt=0.0,
+            shares=shares,
+            terminal_growth=tg,
+        )
+        dcf_price = dcf_res['目标价_元']
+
         return {
-            "sotp_price": sotp_result['target_base'],
-            "sotp_min": sotp_result.get('target_min', None),
-            "sotp_max": sotp_result.get('target_max', None),
-            "dcf_price": sotp_result.get('dcf_price', 0),
-            "weighted_price": sotp_result.get('weighted_price', None),
+            "sotp_price": sotp_result.get('target_base_hkd', 0),
+            "sotp_min": sotp_result.get('target_min_hkd', None),
+            "sotp_max": sotp_result.get('target_max_hkd', None),
+            "dcf_price": dcf_price,
+            "weighted_price": sotp_result.get('weighted_price_hkd', None),
             "current_price": current_price,
-            "sotp_detail": sotp_result,
+            "sotp_detail": sotp.get_sotp_detail(),
+            "fcf_proj": fcf_proj,
+            "sotp_cap_base": sotp_result.get('sotp_cap_base_hkd', 0),
+            "wacc": wacc,
+            "wacc_pct": wacc * 100,
         }
     except Exception as e:
         st.error(f"⚠️ 蓝思科技估值计算失败: {str(e)[:200]}")
-        return {"sotp_price": 0, "dcf_price": 0, "current_price": current_price}
+        return {"sotp_price": 0, "dcf_price": 0, "current_price": current_price, "fcf_proj": [0, 0, 0, 0, 0]}
 
 
 
