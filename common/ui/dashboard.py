@@ -547,87 +547,73 @@ def run_hengxuan_valuation(
 ) -> Dict[str, Any]:
     """恒玄科技(688608)估值计算"""
     import warnings
+    import yaml
     from pathlib import Path
     warnings.filterwarnings('ignore')
 
     repo_root = Path(__file__).parent.parent.parent
     sys.path.insert(0, str(repo_root))
     sys.path.insert(0, str(repo_root / 'stocks' / '688608_hengxuan'))
+    sys.path.insert(0, str(repo_root / 'common'))
 
     try:
         from model import HengxuanSOTP
+        from common.core.discounting_engine import DiscountingEngine
+        from common.core.probability_weight import ProbabilityWeightEngine
+
         sotp = HengxuanSOTP.from_config()
         sotp_result = sotp.calculate(current_price)
+
+        # 读取config中的events用于概率加权
+        config_path = repo_root / 'stocks/688608_hengxuan/config.yaml'
+        with open(config_path, 'r', encoding='utf-8') as f:
+            config = yaml.safe_load(f)
+
+        # DCF计算
+        total_nm = sotp_result.get('total_net_profit', 0)
+        shares = 1.69
+        wacc = rf + beta * 0.045  # 科创板成长股WACC
+        growth_rates = [0.20, 0.22, 0.20, 0.18, 0.15]
+        fcf_conv = 0.65
+        fcf_proj = [round(total_nm * (1 + g) * fcf_conv, 2) for g in growth_rates]
+
+        engine = DiscountingEngine()
+        dcf_result = engine.compute_dcf(
+            fcf_projections=fcf_proj,
+            terminal_fcf=fcf_proj[-1] * 1.03,
+            wacc=wacc,
+            net_debt=-5.0,  # 净现金约5亿
+            shares=shares,
+            terminal_growth=tg,
+        )
+        dcf_price = dcf_result['目标价_元']
+
+        # 概率加权
+        sotp_cap_base = sotp_result.get('sotp_cap_base', 0)
+        events = config.get('events', [])
+        weighted_price = None
+        if events:
+            pw = ProbabilityWeightEngine.from_config_list(events)
+            weighted_cap = pw.apply(sotp_cap_base)
+            weighted_price = weighted_cap / shares
+
         return {
             "sotp_price": sotp_result.get('target_base', 0),
             "sotp_min": sotp_result.get('target_min', None),
             "sotp_max": sotp_result.get('target_max', None),
-            "dcf_price": 0,  # DCF在model内部计算，这里简化
-            "weighted_price": None,
+            "dcf_price": dcf_price,
+            "weighted_price": weighted_price,
             "current_price": current_price,
             "sotp_detail": sotp_result,
-            "total_net_profit": sotp_result.get('total_net_profit', 0),
+            "total_net_profit": total_nm,
+            "fcf_proj": fcf_proj,
+            "wacc": wacc,
+            "wacc_pct": wacc * 100,
+            "sotp_cap_base": sotp_cap_base,
         }
     except Exception as e:
         st.error(f"⚠️ 恒玄科技估值计算失败: {str(e)[:200]}")
-        return {"sotp_price": 0, "dcf_price": 0, "current_price": current_price}
-
-    # SOTP估值 — 使用LensHK_SOTP
-    from model import LensHK_SOTP
-    sotp = LensHK_SOTP.from_config()
-    sotp_result = sotp.calculate(current_price)  # current_price in HKD
-
-    sotp_price_hkd = sotp_result['target_base_hkd']
-    sotp_min_hkd = sotp_result['target_min_hkd']
-    sotp_max_hkd = sotp_result['target_max_hkd']
-    sotp_cap_base = sotp_result['sotp_cap_base_hkd']
-
-    # DCF: 基于总净利
-    total_nm = sotp_result['total_net_profit']  # HKD亿
-    growth_rates = [0.15, 0.18, 0.20, 0.18, 0.15]
-    fcf_proj = [round(total_nm * (1 + g) ** (i + 1) * 0.85, 2) for i, g in enumerate(growth_rates)]
-
-    engine = DiscountingEngine()
-    with warnings.catch_warnings():
-        warnings.simplefilter('ignore')
-        dcf_result = engine.compute_dcf(
-            fcf_projections=fcf_proj,
-            terminal_fcf=fcf_proj[-1],
-            wacc=wacc,
-            net_debt=0.0,
-            shares=shares,
-            terminal_growth=tg,
-        )
-    dcf_price_hkd = dcf_result['目标价_元']
-
-    # 概率加权
-    events = config.get('events', [])
-    weighted_price_hkd = None
-    if events:
-        from common.core.probability_weight import ProbabilityWeightEngine
-        pw = ProbabilityWeightEngine.from_config_list(events)
-        weighted_cap = pw.apply(sotp_cap_base)
-        weighted_price_hkd = weighted_cap / shares
-
-    sotp_detail = sotp.get_sotp_detail()
-
-    return {
-        "sotp_price": sotp_price_hkd,
-        "sotp_min": sotp_min_hkd,
-        "sotp_max": sotp_max_hkd,
-        "dcf_price": dcf_price_hkd,
-        "weighted_price": weighted_price_hkd,
-        "wacc": wacc,
-        "wacc_pct": wacc * 100,
-        "current_price": current_price,
-        "fcf_proj": fcf_proj,
-        "currency": "HKD",
-        "currency_symbol": "HK$",
-        "sotp_detail": sotp_detail,
-        "hkd_cny_rate": hkd_cny_rate,
-        "sotp_cap_base": sotp_cap_base,
-        "total_net_profit": total_nm,
-    }
+        return {"sotp_price": 0, "dcf_price": 0, "current_price": current_price, "fcf_proj": [0, 0, 0, 0, 0]}
 
 # ========== 趋势图 ==========
 def render_trend(df: pd.DataFrame, stock_code: str):
