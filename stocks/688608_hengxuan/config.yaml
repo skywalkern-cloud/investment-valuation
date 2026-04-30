@@ -1,0 +1,127 @@
+# 恒玄科技(688608) SOTP估值模型 - 配置文件
+# 科创板音频芯片龙头，A股（CNY）
+# 最后一更新: 2026-04-30
+
+stock_info:
+  name: 恒玄科技
+  code: "688608"
+  market: A股 (科创板)
+  currency: CNY
+  exchange: SH
+  symbol_tencent: "sh688608"
+  total_shares: 1.69  # 亿股 (总股本)
+  float_shares: 1.47  # 亿股 (流通股本)
+  hkd_cny_rate: 0.92  # HKD/CNY 汇率（不适用但保留）
+
+# 业务分部配置（SOTP）
+segments:
+  # 音频芯片（蓝牙音频/TWS/智能音箱）
+  # 2025年预计营收约26亿，占比约73%，为绝对核心业务
+  - name: "蓝牙音频芯片主业"
+    code: audio
+    revenue_cny: 26.0   # 2026E营收（亿元）
+    net_margin: 0.22    # 净利率22%（规模效应+产品升级）
+    net_profit_cny: 5.72  # 26×22% = 5.72亿
+    pe_min: 35
+    pe_max: 50
+    pe_base: 42
+    notes: "TWS耳机+智能音箱+助听器，蓝牙音频芯片全球前三"
+
+  # AIoT芯片（智能手表/腕带/AR眼镜/AI眼镜）
+  # 2025年约6亿+，AIoT占比提升
+  - name: "AIoT新兴业务"
+    code: aiot
+    revenue_cny: 8.0    # 2026E营收（亿元）
+    net_margin: 0.18    # 净利率18%（仍在高速成长期）
+    net_profit_cny: 1.44  # 8×18% = 1.44亿
+    pe_min: 40
+    pe_max: 60
+    pe_base: 50
+    notes: "智能手表/AR眼镜/AI眼镜，成长最快赛道"
+
+  # 汽车音频芯片（车载音响/语音交互）
+  - name: "汽车电子芯片"
+    code: auto
+    revenue_cny: 1.2     # 2026E营收（亿元）
+    net_margin: 0.25    # 净利率25%（车规级溢价）
+    net_profit_cny: 0.30  # 1.2×25% = 0.30亿
+    pe_min: 40
+    pe_max: 55
+    pe_base: 48
+    notes: "车载音频刚刚起步，已通过车规认证"
+
+# 业绩基准（2025年报）
+base_year: "2025"
+base_revenue: 35.25   # 2025年报营收（亿元）
+base_net_profit: 5.94  # 2025年报归母净利润（亿元）
+base_eps: 3.5416       # 2025EPS（摊薄）
+shares: 1.69           # 总股本（亿股）
+
+# 成长预期（2026-2028）
+growth:
+  audio:
+    rev_growth: 0.08   # 蓝牙音频增长8%（TWS触底复苏）
+    nm_improve: 0.02   # 净利率提升2%（产品升级）
+  aiot:
+    rev_growth: 0.35   # AIoT增长35%（手表/AR眼镜放量）
+    nm_improve: 0.01
+  auto:
+    rev_growth: 0.50   # 汽车增长50%（新客户导入）
+    nm_improve: 0.00
+
+# DCF参数（保守估算）
+dcf:
+  wacc_base: 0.085     # WACC 8.5%（科创板高成长）
+  wacc_min: 0.075
+  wacc_max: 0.095
+  tg: 0.03            # 永续增长率3%
+  net_debt: -5.0      # 净现金约5亿（资产负债表健康）
+
+# 敏感性分析
+sensitivity_analysis:
+  sotp:
+    pe_audio_range: [35, 50]
+    pe_aiot_range: [40, 60]
+    pe_auto_range: [40, 55]
+  dcf:
+    wacc_range: [0.075, 0.095]
+    tg_range: [0.02, 0.04]
+    terminal_multiple: [15, 25]
+
+# 事件驱动（概率加权）
+events:
+  - name: "TWS耳机市场复苏"
+    probability: 0.70
+    magnitude: 0.15
+    impact_type: positive
+    description: "TWS去库存结束，2026年出货量正增长"
+
+  - name: "AI眼镜放量"
+    probability: 0.50
+    magnitude: 0.25
+    impact_type: positive
+    description: "Meta/Ray-Ban/百度/字节AI眼镜上量"
+
+  - name: "汽车芯片通过认证"
+    probability: 0.40
+    magnitude: 0.12
+    impact_type: positive
+    description: "车载音频芯片进入更多车厂"
+
+  - name: "WiFi6芯片量产"
+    probability: 0.45
+    magnitude: 0.18
+    impact_type: positive
+    description: "WiFi6芯片在IoT场景放量"
+
+# 估值说明
+methodology_notes: |
+  - SOTP: 按业务分部估值，加权PE（中枢×净利润）
+  - DCF: 基于2025年净利×1.15（+15%增长）作为DCF起点
+  - 概率加权: 不同情景下的SOTP市值加权平均
+  - 核心逻辑: 蓝牙音频芯片龙头(全球前三)，AIoT(手表/AR)打开第二增长极
+
+display_preferences:
+  currency_symbol: "¥"
+  price_precision: 2
+  show_probability_weighted: true
