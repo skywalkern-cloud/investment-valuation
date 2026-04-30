@@ -1042,6 +1042,10 @@ def main():
         | 市值区间 | {(trad_nm or 0)*15:.1f} ~ {(trad_nm or 0)*20:.1f}亿元 |
         """)
         # SOTP合计
+        # Precompute upside for 002428
+        _sotp_428 = val.get("sotp_price") or 0
+        _cur_428 = val.get("current_price") or 0
+        _up_428 = ((_sotp_428 / max(_cur_428, 1)) - 1) * 100 if _cur_428 > 0 else -100
         st.markdown("**【SOTP合计】**")
         sotp_cap = val.get('sotp_price', 0) * 6.53
         semi_cap = val.get('semi_nm', 0) * 70
