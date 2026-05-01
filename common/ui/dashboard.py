@@ -1117,6 +1117,41 @@ def main():
             | 概率加权 | {(val.get('weighted_price') or 0):.2f} HKD |
             """)
 
+    # 688608: SOTP分部分说明
+    if selected == "688608":
+        sotp_detail = val.get('sotp_detail', {})
+        segments = sotp_detail.get('segments', [])
+        if segments:
+            st.markdown("---")
+            st.markdown('<p class="section-header">📊 SOTP分部分说明（恒玄科技688608）</p>', unsafe_allow_html=True)
+            for seg in segments:
+                st.markdown(f"""
+                **【{seg['name']}】**
+                | 参数 | 值 |
+                |---|---|
+                | 收入(CNY) | **{(seg.get('revenue_cny') or 0):.1f}亿元** |
+                | 净利率 | {(seg.get('net_margin') or 0):.1f}% |
+                | 净利润(CNY) | **{(seg.get('net_profit_cny') or 0):.2f}亿元** |
+                | PE区间 | {seg['pe_range']} (中枢{seg['pe_base']}x) |
+                | 市值(CNY) | **{(seg.get('cap_base') or 0):.1f}亿元** ({seg['pct']}) |
+                """)
+            # SOTP合计
+            _sotp_608 = (val.get("sotp_price") or 0)
+            _cur_608 = (val.get("current_price") or 0)
+            _up_608 = ((_sotp_608 / max(_cur_608, 1)) - 1) * 100 if _cur_608 > 0 else -100
+            total_nm_608 = sotp_detail.get('total_net_profit', 0)
+            st.markdown(f"""
+            **【SOTP合计】**
+            | 指标 | 值 |
+            |---|---|
+            | 总净利润(CNY) | **{(total_nm_608 or 0):.2f}亿元** |
+            | SOTP总市值(CNY) | **{(val.get('sotp_cap_base') or 0):.1f}亿元** |
+            | 当前价(CNY) | {(_cur_608 or 0):.2f} |
+            | 上涨空间 | {_up_608:+.1f}% |
+            | DCF目标价 | {(val.get('dcf_price') or 0):.2f}元 |
+            | 概率加权 | {(val.get('weighted_price') or 0):.2f}元 |
+            """)
+
     # 09988: 端到端敏感性分析展示
     if selected == "09988" and val.get("sensitivity"):
         st.markdown("---")
