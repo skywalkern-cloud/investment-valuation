@@ -526,18 +526,20 @@ def run_lens_valuation(
         from model import LensHK_SOTP
         sotp = LensHK_SOTP.from_config()
         sotp_result = sotp.calculate(current_price)
+        sotp_detail = sotp.get_sotp_detail()  # segments/sotp_cap等在这里，不能用calculate()的原始返回值
         total_nm = sotp_result.get('total_net_profit', 0)
         growth_rates = [0.15, 0.18, 0.20, 0.18, 0.15]
         fcf_conv = 0.65
         fcf_proj = [round(total_nm * (1 + g) * fcf_conv, 2) for g in growth_rates]
         return {
-            "sotp_price": sotp_result['target_base'],
-            "sotp_min": sotp_result.get('target_min', None),
-            "sotp_max": sotp_result.get('target_max', None),
-            "dcf_price": sotp_result.get('dcf_price', 0),
-            "weighted_price": sotp_result.get('weighted_price', None),
+            "sotp_price": sotp_result.get('target_base_hkd'),
+            "sotp_min": sotp_result.get('target_min_hkd', None),
+            "sotp_max": sotp_result.get('target_max_hkd', None),
+            "sotp_cap_base_hkd": sotp_result.get('sotp_cap_base_hkd'),
+            "dcf_price": 0,  # DCF在lens_cron.py单独计算，dashboard另行处理
+            "weighted_price": None,  # 概率加权在lens_cron.py单独计算
             "current_price": current_price,
-            "sotp_detail": sotp_result,
+            "sotp_detail": sotp_detail,  # 用get_sotp_detail()的结果（含segments），不是calculate()原始返回值
             "fcf_proj": fcf_proj,
         }
     except Exception as e:
@@ -759,8 +761,11 @@ def render_soccer(sotp_price: float, dcf_price: float, current_price: float,
         delta_sotp = f"{((sotp_price or 0)/(max(current_price or 1, 0.001))-1)*100:.0f}%"
         st.metric("SOTP", f"{(sotp_price or 0):.1f}{currency_symbol}", delta=delta_sotp, delta_color=delta_color)
     with cols[1]:
-        delta_dcf = f"{((dcf_price or 0)/(max(current_price or 1, 0.001))-1)*100:.0f}%"
-        st.metric("DCF", f"{(dcf_price or 0):.1f}{currency_symbol}", delta=delta_dcf, delta_color=delta_color)
+        if dcf_price and dcf_price > 0:
+            delta_dcf = f"{((dcf_price or 0)/(max(current_price or 1, 0.001))-1)*100:.0f}%"
+            st.metric("DCF", f"{(dcf_price or 0):.1f}{currency_symbol}", delta=delta_dcf, delta_color=delta_color)
+        else:
+            st.metric("DCF", "N/A", delta="-", delta_color="off")
     with cols[2]:
         st.metric("PE×20", f"{(current_price or 0)*0.4:.1f}{currency_symbol}")
     with cols[3]:
@@ -971,7 +976,7 @@ def main():
         val = run_lens_valuation(
             rf=rf_val, beta=beta, tg=tg, current_price=current_price
         )
-        sotp_price = val["sotp_price"]
+        sotp_price = val.get("sotp_price", 0)
         dcf_price = val["dcf_price"]
         weighted_price = val.get("weighted_price", None)
         sotp_min = val.get("sotp_min", None)
@@ -1088,7 +1093,7 @@ def main():
                 """)
             # SOTP合计
             total_nm = sotp_detail.get('total_net_profit_hkd', 0)
-            sotp_cap = val.get('sotp_cap_base', 0)
+            sotp_cap = val.get('sotp_cap_base_hkd', 0)
             _sotp_613 = (val.get("sotp_price") or 0)
             _cur_613 = (val.get("current_price") or 0)
             _up_613 = ((_sotp_613 / max(_cur_613, 1)) - 1) * 100 if _cur_613 > 0 else -100
