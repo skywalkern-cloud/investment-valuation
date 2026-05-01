@@ -519,6 +519,10 @@ def run_lens_valuation(
     warnings.filterwarnings('ignore')
 
     repo_root = Path(__file__).parent.parent.parent
+    # 先删除缓存的model，防止Python用错缓存的module
+    import sys
+    if 'model' in sys.modules:
+        del sys.modules['model']
     sys.path.insert(0, str(repo_root))
     sys.path.insert(0, str(repo_root / 'stocks' / '300433_lens'))
 
@@ -559,6 +563,10 @@ def run_hengxuan_valuation(
     warnings.filterwarnings('ignore')
 
     repo_root = Path(__file__).parent.parent.parent
+    # 先删除缓存的model，防止Python用错缓存的module
+    import sys
+    if 'model' in sys.modules:
+        del sys.modules['model']
     sys.path.insert(0, str(repo_root))
     sys.path.insert(0, str(repo_root / 'stocks' / '688608_hengxuan'))
     sys.path.insert(0, str(repo_root / 'common'))
