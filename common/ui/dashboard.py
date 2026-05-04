@@ -1094,7 +1094,7 @@ def main():
                 | 参数 | 值 |
                 |---|---|
                 | 收入(HKD) | **{(seg.get('revenue_hkd') or 0):.0f}亿元** |
-                | 净利率 | {(seg.get('net_margin') or 0):.1f}% |
+                | 净利率 | {(seg.get('net_margin') or 0) * 100:.1f}% |
                 | 净利润(HKD) | **{(seg.get('net_profit_hkd') or 0):.2f}亿元** |
                 | PE区间 | {seg['pe_range']} (中枢{seg['pe_base']}x) |
                 | 市值(HKD) | **{(seg.get('cap_hkd') or 0):.1f}亿元** ({seg['pct']}) |
@@ -1130,7 +1130,7 @@ def main():
                 | 参数 | 值 |
                 |---|---|
                 | 收入(CNY) | **{(seg.get('revenue_cny') or 0):.1f}亿元** |
-                | 净利率 | {(seg.get('net_margin') or 0):.1f}% |
+                | 净利率 | {(seg.get('net_margin') or 0) * 100:.1f}% |
                 | 净利润(CNY) | **{(seg.get('net_profit_cny') or 0):.2f}亿元** |
                 | PE区间 | {seg['pe_range']} (中枢{seg['pe_base']}x) |
                 | 市值(CNY) | **{(seg.get('cap_base') or 0):.1f}亿元** ({seg['pct']}) |
