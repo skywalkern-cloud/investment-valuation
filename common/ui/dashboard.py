@@ -567,6 +567,7 @@ def run_lens_valuation(
         with open(config_path, 'r') as f:
             cfg = yaml.safe_load(f)
         events = cfg.get('events', [])
+        financial_data = cfg.get('financial_data', {})
         weighted_price_hkd = None
         if events:
             pw = ProbabilityWeightEngine.from_config_list(events)
@@ -585,6 +586,7 @@ def run_lens_valuation(
             "sotp_detail": sotp_detail,
             "fcf_proj": fcf_proj,
             "wacc": wacc,
+            "financial_data": financial_data,
         }
     except Exception as e:
         import traceback
@@ -1122,9 +1124,34 @@ def main():
         | 上涨空间 | {_up_428:+.1f}% |
         """)
 
-    # 06613: SOTP分部分说明
+    # 06613: 数据来源 + SOTP分部分说明
     if selected == "06613":
         st.markdown("---")
+        financial_data = val.get('financial_data', {})
+        if financial_data:
+            sources = financial_data.get('data_sources', [])
+            key_metrics = financial_data.get('key_metrics', {})
+            base_year = financial_data.get('base_year', 'N/A')
+            st.markdown('<p class="section-header">📋 财务数据来源（蓝思科技HK06613）</p>', unsafe_allow_html=True)
+            # 关键指标行
+            if key_metrics:
+                col1, col2, col3, col4 = st.columns(4)
+                with col1:
+                    st.metric("基准年份", base_year)
+                with col2:
+                    rev = key_metrics.get('revenue_hkd', 0)
+                    st.metric("营收(HKD)", f"{rev:.1f}亿")
+                with col3:
+                    nm = key_metrics.get('net_profit_hkd', 0)
+                    st.metric("净利润(HKD)", f"{nm:.1f}亿")
+                with col4:
+                    margin = key_metrics.get('net_margin', 0)
+                    st.metric("净利率", f"{margin:.1f}%")
+            # 数据来源链接
+            if sources:
+                src_md = "**来源：** " + " | ".join([f"[{s.get('name','')}]({s.get('url','')})" for s in sources])
+                st.markdown(src_md)
+        st.markdown("<hr style='margin: 8px 0'>", unsafe_allow_html=True)
         st.markdown('<p class="section-header">📊 SOTP分部分说明（蓝思科技HK06613）</p>', unsafe_allow_html=True)
         sotp_detail = val.get('sotp_detail', {})
         segments = sotp_detail.get('segments', [])
