@@ -51,7 +51,7 @@ class YunnangeiyecSOTP:
     
     # --- 传统锗矿分部参数 ---
     GERMANIUM_OUTPUT = 30     # 锗金属产量 (吨/年)
-    GERMANIUM_PRICE = 1.2     # 锗价 (万元/公斤)
+    GERMANIUM_PRICE = 1.775   # 锗价 (万元/公斤)
     TRAD_NET_MARGIN = 0.30    # 净利率
     TRAD_PE_MIN, TRAD_PE_MAX = 15, 20
     TRAD_PE_BASE = 18
@@ -97,7 +97,7 @@ class YunnangeiyecSOTP:
         # ===== 2. 传统业务 (锗矿) =====
         # 公式: 产量 × 单价 = 收入
         #       收入 × 净利率 = 净利润
-        trad_revenue = self.germanium_output * self.germanium_price  # 亿元 (吨×万元/吨=亿元)
+        trad_revenue = self.germanium_output * 1000 * self.germanium_price / 10000  # 亿元 (吨→公斤×万元/公斤÷10000)
         trad_net_profit = trad_revenue * self.TRAD_NET_MARGIN
         
         # 市值
@@ -168,7 +168,7 @@ class YunnangeiyecSOTP:
         lines.append("")
         lines.append("【传统业务：锗矿开采冶炼】")
         lines.append("-" * 50)
-        lines.append(f"  公式: 产量 {self.germanium_output}吨 × {self.germanium_price}万/吨 = 收入")
+        lines.append(f"  公式: 产量 {self.germanium_output}吨 × {self.germanium_price}万元/公斤 × 1000 ÷ 10000 = 收入")
         lines.append(f"  产量: {self.germanium_output} 吨/年")
         lines.append(f"  锗价: {self.germanium_price} 万元/公斤")
         lines.append(f"  → 收入: {self.germanium_output} × {self.germanium_price} = {result['trad_revenue']:.2f} 亿元")
