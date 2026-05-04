@@ -99,34 +99,58 @@ sensitivity_analysis:
 events:
   - name: "TWS耳机市场复苏"
     probability: 0.70
-    magnitude: 1.15  # 【修复】magnitude为比例因子，1.15=上涨15%（原0.15被engine误读为-85%）
-    impact_type: positive
+    magnitude: 1.15  # 上涨15%（SOTP基准PE已含部分预期，此处为额外催化）
+    impact: positive
     description: "TWS去库存结束，2026年出货量正增长"
+    note: "AIoT业务PE50x已含部分AIoT放量预期，此处magnitude需确认不含双重计价"
 
   - name: "AI眼镜放量"
     probability: 0.50
-    magnitude: 1.25  # 【修复】+25%上涨（原0.25→-75%严重错误）
-    impact_type: positive
+    magnitude: 1.15  # 上涨15%（谨慎调整，避免50x PE双重计价）
+    impact: positive
     description: "Meta/Ray-Ban/百度/字节AI眼镜上量"
 
   - name: "汽车芯片通过认证"
     probability: 0.40
-    magnitude: 1.12  # 【修复】+12%上涨（原0.12→-88%）
-    impact_type: positive
+    magnitude: 1.10  # 上涨10%（48x PE已含部分预期，此处为增量催化）
+    impact: positive
     description: "车载音频芯片进入更多车厂"
 
   - name: "WiFi6芯片量产"
     probability: 0.45
-    magnitude: 1.18  # 【修复】+18%上涨（原0.18→-82%）
-    impact_type: positive
+    magnitude: 1.12  # 上涨12%
+    impact: positive
     description: "WiFi6芯片在IoT场景放量"
 
+  # === 负向事件（2026-05-04新增） ===
+  # 完整的期望值模型应含对称的负向风险
+  - name: "大客户砍单/竞争加剧"
+    probability: 0.30  # 注意：与正向TWS复苏不能简单相加，需互斥或条件概率
+    magnitude: 0.80  # 下跌20%
+    impact: negative
+    description: "高通/联发科进入OWS市场，恒玄份额/净利率双杀"
+
+  - name: "消费电子持续低迷"
+    probability: 0.25  # 与TWS复苏互斥（复苏则此事件不发生）
+    magnitude: 0.85  # 下跌15%
+    impact: negative
+    description: "TWS/手机持续低迷，主业净利率承压"
+
 # 估值说明
+# ============================================================
+# 估值说明
+# ============================================================
 methodology_notes: |
   - SOTP: 按业务分部估值，加权PE（中枢×净利润）
   - DCF: 基于2025年净利×1.15（+15%增长）作为DCF起点
   - 概率加权: 不同情景下的SOTP市值加权平均
   - 核心逻辑: 蓝牙音频芯片龙头(全球前三)，AIoT(手表/AR)打开第二增长极
+  
+  【重要修正 2026-05-04】
+  - 乘法模型风险：事件正相关时高估（复利偏差）
+  - 建议替代方案：加权求和模型 = 1 + Σ期望回报
+  - SOTP基准PE已含部分乐观预期，概率加权应避免双重计价
+  - 完整模型应包含对称的负向风险事件
 
 display_preferences:
   currency_symbol: "¥"
