@@ -14,6 +14,49 @@ meta:
   hkd_cny_rate: 0.92
   currency: "HKD"
 
+# ============================================================
+# 财务数据来源（2025年报）
+# ============================================================
+#   - 合并营收/净利/EPS/ROE/净利率: 2025年报（港币HKD）
+#     来源: 港交所披露易 https://www.hkexnews.hk → 搜"蓝思科技"
+#     或: 东方财富港股数据中心 https://data.eastmoney.com/hk
+#
+#   - 分部营收拆分（玻璃主业/VR/汽车/其他）:
+#     来源: 公司年报营收分部说明 + 机构研报估算（2025年报）
+#
+#   - 实时股价: 腾讯行情 API (hk06613)
+#
+#   - 实时市值/PE等: 由实时股价 × 总股本计算得出
+# ============================================================
+
+financial_data:
+  base_year: "2025"           # 基准财报年份
+  report_type: "年报(港币HKD)"  # 报表类型
+  data_sources:
+    - name: "港交所披露易"
+      url: "https://www.hkexnews.hk"
+      description: "2025年报（蓝思科技H股）"
+    - name: "东方财富港股数据"
+      url: "https://data.eastmoney.com/hk"
+      description: "港股实时行情及财务摘要"
+  key_metrics:
+    revenue_hkd: 744.10       # 亿元HKD（2025年报合并营收）
+    net_profit_hkd: 40.18     # 亿元HKD（2025归母净利润）
+    eps_hkd: 0.79             # 元HKD（EPS摊薄）
+    roe: 7.75                 # %（2025年报）
+    net_margin: 5.43          # %（净利率）
+    gross_margin: 22.5         # %（毛利率，参考值）
+  segment_revenue_hkd:        # 2025年报分部营收（公司披露+估算）
+    glass_main: 558.0         # 亿元HKD（消费电子玻璃主业）
+    vr_ar: 95.0               # 亿元HKD（VR/AR/可穿戴）
+    automotive: 60.0          # 亿元HKD（汽车电子）
+    other: 31.0               # 亿元HKD（陶瓷/蓝宝石/金属其他）
+  segment_notes: |
+    分部营收由2025年报披露的分部毛利结构推算，
+    由于港交所不强制披露详细分部营收，采用了公司年报
+    中的文字说明 + 主流券商研报估算值。
+    汇率统一用 1 HKD = 0.92 CNY（2026-04参考）。
+
 events:
   - name: "AI手机换机潮带动玻璃盖板需求"
     probability: 0.70
@@ -86,13 +129,13 @@ methodology_notes:
     1. 苹果产业链的确定性
     2. AI驱动换机潮的预期
     3. VR/汽车等新业务的成长性
-    
+
     【收入拆分说明】
     558亿HKD玻璃主业 = 手机玻璃 + 平板/笔记本玻璃 + 智能手表玻璃
     95亿HKD VR/可穿戴 = Apple Vision/Meta Quest/其他AR眼镜
     60亿HKD汽车电子 = 新能源车中控屏 + 仪表盘 + 触控传感器
     31亿HKD其他 = 陶瓷/蓝宝石外观件 + 金属小件
-    
+
     汇率: 1 HKD = 0.92 CNY（2026-04参考）
 
   terminal_growth:
