@@ -110,36 +110,47 @@ class ProbabilityWeightEngine:
                 return True
         return False
 
-    def apply(self, base_value: float) -> float:
+    def apply(self, base_value: float, method: str = 'additive') -> float:
         """
         应用所有事件权重，计算调整后估值
 
-        公式:
-          positive:  adjusted = base × (1 + (mag-1) × prob)
-          negative:  adjusted = base × (1 - (1-mag) × prob)
+        方法:
+          'additive'（默认）: 加权求和（推荐）
+            adjusted = base × (1 + Σ(magnitude-1)×probability)
+            适用于：事件高度正相关（如同业周期），更接近真实期望值
+
+          'multiplicative': 连乘法（兼容性保留）
+            adjusted = base × ∏(1 + (magnitude-1) × probability)
+            适用于：事件相互独立，连乘不会高估
 
         Args:
             base_value: 基础估值 (亿元市值)
+            method: 'additive'（加权求和）或 'multiplicative'（连乘）
 
         Returns:
             调整后估值 (亿元)
         """
-        adjusted = base_value
-        for ev in self.events:
-            if ev.impact == 'positive':
-                # 正向影响: 概率 × 幅度权重
-                # 例: prob=0.65, mag=1.4
-                #     = base × (1 + (1.4-1) × 0.65)
-                #     = base × 1.26  (上涨26%)
-                adjusted *= (1 + (ev.magnitude - 1) * ev.probability)
-            else:
-                # 负向影响
-                # 例: prob=0.30, mag=0.85
-                #     = base × (1 - (1-0.85) × 0.30)
-                #     = base × 0.955  (下跌4.5%)
-                adjustment = (1 - ev.magnitude) * ev.probability
-                adjusted *= (1 - adjustment)
+        if method == 'multiplicative':
+            # 连乘法（兼容性保留）
+            adjusted = base_value
+            for ev in self.events:
+                if ev.impact == 'positive':
+                    adjusted *= (1 + (ev.magnitude - 1) * ev.probability)
+                else:
+                    adjustment = (1 - ev.magnitude) * ev.probability
+                    adjusted *= (1 - adjustment)
+            return adjusted
 
+        # 默认：加权求和（避免复利偏差，更适合正相关事件）
+        # 期望回报 = Σ p_i × (magnitude_i - 1)
+        # 正向事件: magnitude > 1 → 回报为正
+        # 负向事件: magnitude < 1 → 回报为负
+        expected_return = 0.0
+        for ev in self.events:
+            contribution = (ev.magnitude - 1) * ev.probability
+            expected_return += contribution
+
+        adjusted = base_value * (1 + expected_return)
         return adjusted
 
     def adjust_valuation(
@@ -227,32 +238,33 @@ class ProbabilityWeightEngine:
                 ],
             }
         """
-        total_multiplier = 1.0
+        # 使用加权求和计算总乘数（避免连乘复利偏差）
+        total_contribution = 0.0
         event_details = []
 
         for ev in self.events:
-            if ev.impact == 'positive':
-                contrib = (ev.magnitude - 1) * ev.probability
-            else:
-                contrib = -(1 - ev.magnitude) * ev.probability
-
-            total_multiplier *= (1 + contrib if ev.impact == 'positive' else 1 - (1-ev.magnitude)*ev.probability)
+            # 每个事件贡献 = (magnitude - 1) × probability
+            # 正向: mag>1 → 正贡献; 负向: mag<1 → 负贡献
+            contrib = (ev.magnitude - 1) * ev.probability
+            total_contribution += contrib
 
             event_details.append({
                 'name': ev.name,
                 'probability': ev.probability,
                 'magnitude': ev.magnitude,
                 'impact': ev.impact,
-                'contribution': contrib,
+                'contribution': contrib,  # 各事件的绝对贡献（非复利）
                 'description': ev.description,
                 'source': ev.source,
             })
 
+        total_multiplier = 1 + total_contribution
+
         return {
             'base_value': base_value,
-            'adjusted_value': self.apply(base_value),
+            'adjusted_value': self.apply(base_value, method='additive'),
             'total_multiplier': total_multiplier,
-            'upside_pct': (total_multiplier - 1) * 100,
+            'upside_pct': total_contribution * 100,
             'events': event_details,
         }
 
