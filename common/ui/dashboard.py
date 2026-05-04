@@ -394,6 +394,7 @@ def run_yunnangeiyec_valuation(
         # 额外诊断信息
         "semi_nm": semi_nm,
         "trad_nm": trad_nm,
+        "trad_revenue": sotp_result['trad_revenue'],
         "total_nm": total_nm,
         "inp_revenue": sotp_result['semi_revenue'],
         "inp_price": 2.65,
@@ -1095,8 +1096,8 @@ def main():
         | 参数 | 值 |
         |---|---|
         | 产量 | 30吨/年 |
-        | 锗价 | 1.2万元/公斤 |
-        | 收入 | {30 * 1.2:.2f}亿元 |
+        | 锗价 | 1.775万元/公斤 |
+        | 收入 | {val.get('trad_revenue', 0):.2f}亿元 |
         | 净利率 | 30% |
         | 净利润 | **{trad_nm:.2f}亿元** |
         | PE区间 | 15-20x (传统业务折价) |
