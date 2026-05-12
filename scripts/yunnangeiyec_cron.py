@@ -31,18 +31,26 @@ BITABLE_TABLE_ID = "tblAH85HuqZuyLSH"
 # ========== 数据获取 ==========
 
 def get_stock_spot():
-    """获取云南锗业实时行情"""
+    """获取云南锗业实时行情（使用腾讯API不走代理，稳定实时）"""
     try:
-        import akshare as ak
-        df = ak.stock_individual_spot_xq(symbol='SZ002428')
-        data = {}
-        for _, row in df.iterrows():
-            data[row['item']] = row['value']
+        import requests
+        proxies = {'http': None, 'https': None}
+        headers = {'Referer': 'https://gu.qq.com', 'User-Agent': 'Mozilla/5.0'}
+        r = requests.get('https://qt.gtimg.cn/q=sz002428', proxies=proxies, headers=headers, timeout=10)
+        parts = r.text.split('"')[1].split('~')
+        
+        current = float(parts[3])
+        prev_close = float(parts[4])
+        open_price = float(parts[5])
+        high = float(parts[33])
+        low = float(parts[34])
+        change_pct = (current - prev_close) / prev_close * 100 if prev_close else 0
+        
         return {
-            'current_price': float(data.get('现价', 0)),
-            'change_pct': float(data.get('涨幅', 0)),
-            'pe_ttm': float(data.get('市盈率(TTM)', 0)),
-            'pb': float(data.get('市净率', 0)),
+            'current_price': current,
+            'change_pct': round(change_pct, 2),
+            'pe_ttm': 0,  # 需手动更新
+            'pb': 0,  # 需手动更新
         }
     except Exception as e:
         print(f"⚠️ 行情获取失败: {e}")
@@ -147,13 +155,27 @@ def calc_valuation(spot, commodity, manual_data):
         current_price = 77.12
 
     # 获取商品价格
-    inp_price = 2.65  # 默认InP衬底价格(万元/片)
+    inp_price = 3.0  # 默认InP衬底价格(万元/片) — 5月估算（4月2.65，供需紧张+原料涨价）
     germanium_price_kg = 1.2  # 默认锗价(万元/公斤)
+    indium_price_raw = 4350  # 铟价默认值(元/kg)
     if commodity:
         # commodity germanium_price单位是元/kg，转换为万元/公斤
         germanium_price_raw = commodity.get('germanium_price')
         if germanium_price_raw:
             germanium_price_kg = germanium_price_raw / 10000.0
+        indium_price_raw = commodity.get('indium_price') or 4350
+        
+        # InP价格估算：供需溢价驱动，铟价成本传导有限
+        # 供需缺口72%（5月比4月更紧），每片InP用铟约12g
+        indium_apr = 4350  # 4月底铟价
+        indium_chg_pct = (indium_price_raw - indium_apr) / indium_apr  # 铟价涨幅
+        supply_gap = 0.72  # 5月供需缺口假设扩大
+        scarcity_mult = 1 / (1 - supply_gap)  # 3.57x
+        base_inp = 2.65  # 4月基准
+        # 材料成本占比仅0.2%，传导系数极低；综合溢价估算
+        cost_impact = 1 + indium_chg_pct * 0.002
+        inp_price = round(base_inp * cost_impact * (scarcity_mult / 3.33) * 1.05, 2)
+        inp_price = max(inp_price, 2.8)  # 最低2.8万/片
 
     # 创建SOTP实例，用实际商品价格
     sotp = YunnangeiyecSOTP(
@@ -391,10 +413,10 @@ def main():
             print("  " + "="*50)
             print("  【半导体分部：磷化铟(InP)衬底】")
             print("  " + "-"*50)
-            print(f"  公式: 产能15万片 × 利用率100% × 均2.65万元/片 = 收入")
+            print(f"  公式: 产能15万片 × 利用率100% × 均3.00万元/片 = 收入")
             print(f"  产能: 15万片/年 | 利用率: 100% (订单超产能)")
-            print(f"  InP均价: 2.65万元/片")
-            print(f"  → 收入: 15 × 1.0 × 2.65 = {d['semi_revenue']:.2f}亿元")
+            print(f"  InP均价: 3.00万元/片 (5月估算值)")
+            print(f"  → 收入: 15 × 1.0 × 3.00 = {d['semi_revenue']:.2f}亿元")
             print(f"  净利率: 24% (制造费用折算)")
             print(f"  → 净利润: {d['semi_revenue']:.2f} × 24% = {d['semi_net_profit']:.2f}亿元")
             print(f"  PE区间: 60-80x (AI材料稀缺溢价)")
