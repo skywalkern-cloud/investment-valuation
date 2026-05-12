@@ -41,20 +41,49 @@ class YunnangeiyecSOTP:
     2. 传统锗锭业务 - PE×15-20
     """
     
-    # --- 磷化铟半导体分部参数 (2026年4月) ---
+    # --- 磷化铟半导体分部参数 (2026年5月) ---
+    # InP价格估算逻辑：供需缺口驱动溢价，铟价成本传导有限
+    # 供需缺口>70% → 溢价3.3x基础价，5月扩大至~3.5x
     CAPACITY_WAN = 15        # 当前产能 (万片/年)
     UTILIZATION = 1.0        # 产能利用率 (满产，订单超产能)
-    InP_PRICE = 2.65        # InP衬底均价 (万元/片)
+    InP_PRICE = 3.0         # InP衬底均价 (万元/片) — 5月估算，供需紧张+原料涨价
     NET_MARGIN = 0.24        # 净利率 24% (毛利率45%×制造折算)
     SEMI_PE_MIN, SEMI_PE_MAX = 60, 80
     SEMI_PE_BASE = 70
     
     # --- 传统锗矿分部参数 ---
     GERMANIUM_OUTPUT = 30     # 锗金属产量 (吨/年)
-    GERMANIUM_PRICE = 1.775   # 锗价 (万元/公斤)
+    GERMANIUM_PRICE = 1.95   # 锗价 (万元/公斤) — 5月实际价1.95万/kg
     TRAD_NET_MARGIN = 0.30    # 净利率
     TRAD_PE_MIN, TRAD_PE_MAX = 15, 20
     TRAD_PE_BASE = 18
+    
+    # --- InP价格估算辅助函数 ---
+    @staticmethod
+    def estimate_inp_price(indium_price_yuan_kg=None, supply_gap_ratio=0.72):
+        """
+        估算InP衬底价格
+        逻辑：供需缺口驱动溢价，铟价成本传导有限
+        
+        indium_price_yuan_kg: 铟价(元/kg)，如果提供则考虑成本传导
+        supply_gap_ratio: 供需缺口比例，默认72%（比4月更紧）
+        """
+        base_inp = 2.65  # 4月基础价(万元/片)
+        
+        # 铟价成本传导：每片InP约需12g铟，铟价涨幅传导到成本端<1%
+        if indium_price_yuan_kg:
+            indium_apr = 4350  # 4月底铟价
+            indium_chg_pct = (indium_price_yuan_kg - indium_apr) / indium_apr
+            # 材料成本占比仅0.2%，传导系数极低
+            cost_impact = 1 + indium_chg_pct * 0.002
+        else:
+            cost_impact = 1.0
+        
+        # 供需溢价：缺口越大溢价越高
+        scarcity_mult = 1 / (1 - supply_gap_ratio)  # 72%缺口→3.57x
+        
+        # 综合估算
+        return base_inp * cost_impact * (scarcity_mult / 3.33) * 1.05  # 归一化到5月溢价水平
     
     TOTAL_SHARES = 6.53       # 总股本 (亿股)
     
