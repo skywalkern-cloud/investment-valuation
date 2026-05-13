@@ -211,6 +211,30 @@ def get_price_688608() -> float:
     return 170.70  # fallback
 
 
+def get_price_002270() -> float:
+    """获取华明装备A股实时股价（腾讯行情API）"""
+    try:
+        from common.stock_api import get_a_stock_quote
+        quotes = get_a_stock_quote(['002270'])
+        if quotes and quotes[0].get('price', 0) > 0:
+            return float(quotes[0]['price'])
+    except Exception as e:
+        print(f"⚠️ 腾讯行情002270失败: {e}")
+    # fallback: 腾讯直接请求
+    try:
+        import requests
+        resp = requests.get('https://qt.gtimg.cn/q=sz002270', timeout=10)
+        resp.encoding = 'gbk'
+        for line in resp.text.split('\n'):
+            if 'sz002270' in line:
+                parts = line.split('~')
+                price = float(parts[3]) if parts[3] else None
+                return price if price and price > 0 else 25.93
+    except Exception as e:
+        print(f"⚠️ 腾讯行情sz002270失败: {e}")
+    return 25.93  # fallback
+
+
 def get_current_price(stock_code: str) -> float:
     """根据股票代码获取实时股价"""
     if stock_code == "002428":
@@ -221,6 +245,8 @@ def get_current_price(stock_code: str) -> float:
         return get_price_06613()
     elif stock_code == "688608":
         return get_price_688608()
+    elif stock_code == "002270":
+        return get_price_002270()
     return 0.0
 
 
@@ -929,6 +955,7 @@ def main():
             "09988": "🇭🇰 阿里巴巴 (09988)",
             "06613": "🇭🇰 蓝思科技 (06613)",
             "688608": "🇨🇳 恒玄科技 (688608)",
+            "002270": "🇨🇳 华明装备 (002270)",
         }
         selected = st.selectbox(
             "选择股票",
@@ -965,6 +992,10 @@ def main():
         elif selected == "688608":
             mp = 0.05   # 科创板 5%
             beta_default = 0.95
+            tg_default = 0.03
+        elif selected == "002270":
+            mp = 0.05   # A股特高压 5%
+            beta_default = 1.1
             tg_default = 0.03
         else:
             mp = 0.07   # 港股 7%
