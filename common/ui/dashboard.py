@@ -100,6 +100,15 @@ STOCK_REGISTRY = {
         "shares": 1.69,
         "config_path": "stocks/688608_hengxuan/config.yaml",
     },
+    "002270": {
+        "name": "华明装备",
+        "code": "002270",
+        "market": "SZ",
+        "currency": "CNY",
+        "symbol_tencent": "sz002270",
+        "shares": 5.33,
+        "config_path": "stocks/002270_huaming/config.yaml",
+    },
 }
 
 
