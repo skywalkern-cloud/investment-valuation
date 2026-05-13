@@ -515,38 +515,79 @@ def run_lens_valuation(
     import sys
     import importlib.machinery
     import warnings
+    import yaml
     from pathlib import Path
     warnings.filterwarnings('ignore')
 
     repo_root = Path(__file__).parent.parent.parent
     # 先删除缓存的model，防止Python用错缓存的module
-    import sys
     if 'model' in sys.modules:
         del sys.modules['model']
     sys.path.insert(0, str(repo_root))
     sys.path.insert(0, str(repo_root / 'stocks' / '300433_lens'))
+    sys.path.insert(0, str(repo_root / 'common'))
 
     try:
         from model import LensHK_SOTP
+        from common.core.discounting_engine import DiscountingEngine
+        from common.core.probability_weight import ProbabilityWeightEngine
+
         sotp = LensHK_SOTP.from_config()
         sotp_result = sotp.calculate(current_price)
-        sotp_detail = sotp.get_sotp_detail()  # segments/sotp_cap等在这里，不能用calculate()的原始返回值
+        sotp_detail = sotp.get_sotp_detail()
         total_nm = sotp_result.get('total_net_profit', 0)
+        shares = sotp_result.get('shares', 52.79)
+        hkd_cny_rate = sotp_result.get('hkd_cny_rate', 0.92)
+
+        # DCF计算
+        engine = DiscountingEngine()
+        with warnings.catch_warnings():
+            warnings.simplefilter('ignore')
+            wacc = engine.calc_wacc(risk_free_rate=rf, beta=beta,
+                                    market_premium=0.07, auto_refresh_beta=True)
         growth_rates = [0.15, 0.18, 0.20, 0.18, 0.15]
-        fcf_conv = 0.65
+        fcf_conv = 0.85
         fcf_proj = [round(total_nm * (1 + g) * fcf_conv, 2) for g in growth_rates]
+        dcf_result = engine.compute_dcf(
+            fcf_projections=fcf_proj,
+            terminal_fcf=fcf_proj[-1],
+            wacc=wacc,
+            net_debt=0.0,
+            shares=shares,
+            terminal_growth=tg,
+        )
+        dcf_price_hkd = dcf_result['目标价_元']
+
+        # 读取config中的events用于概率加权
+        config_path = repo_root / 'stocks/300433_lens/config.yaml'
+        with open(config_path, 'r', encoding='utf-8') as f:
+            config = yaml.safe_load(f)
+
+        sotp_cap_hkd = sotp_result.get('sotp_cap_base_hkd', 0)
+        events = config.get('events', [])
+        weighted_price_hkd = None
+        if events:
+            pw = ProbabilityWeightEngine.from_config_list(events)
+            weighted_cap = pw.apply(sotp_cap_hkd)
+            weighted_price_hkd = weighted_cap / shares
+
         return {
             "sotp_price": sotp_result.get('target_base_hkd'),
             "sotp_min": sotp_result.get('target_min_hkd', None),
             "sotp_max": sotp_result.get('target_max_hkd', None),
             "sotp_cap_base_hkd": sotp_result.get('sotp_cap_base_hkd'),
-            "dcf_price": 0,  # DCF在lens_cron.py单独计算，dashboard另行处理
-            "weighted_price": None,  # 概率加权在lens_cron.py单独计算
+            "dcf_price": dcf_price_hkd,
+            "weighted_price": weighted_price_hkd,
             "current_price": current_price,
-            "sotp_detail": sotp_detail,  # 用get_sotp_detail()的结果（含segments），不是calculate()原始返回值
+            "sotp_detail": sotp_detail,
             "fcf_proj": fcf_proj,
+            "wacc": wacc,
+            "wacc_pct": wacc * 100,
+            "hkd_cny_rate": hkd_cny_rate,
+            "sotp_cap_base": sotp_cap_hkd,
         }
     except Exception as e:
+        import traceback
         st.error(f"⚠️ 蓝思科技估值计算失败: {str(e)[:200]}")
         return {"sotp_price": 0, "dcf_price": 0, "current_price": current_price, "fcf_proj": [0, 0, 0, 0, 0]}
 
