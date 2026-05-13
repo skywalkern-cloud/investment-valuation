@@ -631,6 +631,85 @@ def run_lens_valuation(
 
 
 
+def run_huaming_valuation(
+    rf: float, beta: float, tg: float, current_price: float,
+    cost_of_debt: float = 0.045, tax_rate: float = 0.15, debt_ratio: float = 0.2
+) -> Dict[str, Any]:
+    """华明装备(002270)估值计算"""
+    import warnings
+    import yaml
+    from pathlib import Path
+    warnings.filterwarnings('ignore')
+
+    repo_root = Path(__file__).parent.parent.parent
+    import sys
+    if 'model' in sys.modules:
+        del sys.modules['model']
+    sys.path.insert(0, str(repo_root))
+    sys.path.insert(0, str(repo_root / 'stocks' / '002270_huaming'))
+    sys.path.insert(0, str(repo_root / 'common'))
+
+    try:
+        from model import HuamingSOTP
+        from common.core.discounting_engine import DiscountingEngine
+        from common.core.probability_weight import ProbabilityWeightEngine
+
+        sotp = HuamingSOTP.from_config()
+        sotp_result = sotp.calculate(current_price)
+
+        # 读取config中的events用于概率加权
+        config_path = repo_root / 'stocks/002270_huaming/config.yaml'
+        with open(config_path, 'r', encoding='utf-8') as f:
+            config = yaml.safe_load(f)
+
+        # DCF计算
+        total_nm = sotp_result.get('total_net_profit', 0)
+        shares = 8.96  # 亿股
+        wacc = rf + beta * 0.045  # A股制造业 WACC
+        growth_rates = [0.18, 0.16, 0.14, 0.12, 0.10]
+        fcf_conv = 0.65
+        fcf_proj = [round(total_nm * (1 + g) * fcf_conv, 2) for g in growth_rates]
+
+        engine = DiscountingEngine()
+        dcf_result = engine.compute_dcf(
+            fcf_projections=fcf_proj,
+            terminal_fcf=fcf_proj[-1] * (1 + tg),
+            wacc=wacc,
+            net_debt=0,  # 有息负债不多
+            shares=shares,
+            terminal_growth=tg,
+        )
+        dcf_price = dcf_result['目标价_元']
+
+        # 概率加权
+        sotp_cap_base = sotp_result.get('sotp_cap_base', 0)
+        events = config.get('events', [])
+        weighted_price = None
+        if events:
+            pw = ProbabilityWeightEngine.from_config_list(events)
+            weighted_cap = pw.apply(sotp_cap_base)
+            weighted_price = weighted_cap / shares
+
+        return {
+            "sotp_price": sotp_result.get('target_base', 0),
+            "sotp_min": sotp_result.get('target_min', None),
+            "sotp_max": sotp_result.get('target_max', None),
+            "dcf_price": dcf_price,
+            "weighted_price": weighted_price,
+            "current_price": current_price,
+            "sotp_detail": sotp_result,
+            "total_net_profit": total_nm,
+            "fcf_proj": fcf_proj,
+            "wacc": wacc,
+            "wacc_pct": wacc * 100,
+            "sotp_cap_base": sotp_cap_base,
+        }
+    except Exception as e:
+        import traceback
+        st.error(f"⚠️ 华明装备估值计算失败: {str(e)[:200]}")
+        return {"sotp_price": 0, "dcf_price": 0, "current_price": current_price, "fcf_proj": [0, 0, 0, 0, 0]}
+
+
 def run_hengxuan_valuation(
     rf: float, beta: float, tg: float, current_price: float,
     cost_of_debt: float = 0.04, tax_rate: float = 0.15, debt_ratio: float = 0.2
@@ -1084,6 +1163,16 @@ def main():
         sotp_min = val.get("sotp_min", None)
         sotp_max = val.get("sotp_max", None)
         df_history = pd.DataFrame()  # 恒玄暂无历史数据
+    elif selected == "002270":
+        val = run_huaming_valuation(
+            rf=rf_val, beta=beta, tg=tg, current_price=current_price
+        )
+        sotp_price = val.get("sotp_price", val.get("target_base", 0))
+        dcf_price = val.get("dcf_price", 0)
+        weighted_price = val.get("weighted_price", None)
+        sotp_min = val.get("sotp_min", None)
+        sotp_max = val.get("sotp_max", None)
+        df_history = pd.DataFrame()  # 华明暂无历史数据
     else:
         val = run_alibaba_valuation(
             rf=rf_val, beta=beta, tg=tg, current_price=current_price,
