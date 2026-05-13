@@ -133,3 +133,28 @@ display_preferences:
   currency_symbol: "¥"
   price_precision: 2
   show_probability_weighted: true
+
+# 财务数据来源（供Dashboard展示）
+financial_data:
+  base_year: "2025"
+  data_sources:
+    - name: "2025年报（深交所）"
+      url: "https://www.szse.cn/market/stock/indicator/index.html?code=002270"
+      description: "总股本8.96亿股、净利润7.10亿、EPS 0.79元"
+    - name: "雪球-华明装备"
+      url: "https://xueqiu.com/S/SZ002270"
+      description: "历史财务数据、机构预测、股东信息"
+    - name: "东方财富-个股数据"
+      url: "https://data.eastmoney.com/stockData/002270.html"
+      description: "分部营收、利润率、同行业对比"
+    - name: "腾讯行情-API"
+      url: "https://gu.qq.com/sz002270"
+      description: "实时股价、当前价26元、总市值~233亿"
+  key_metrics:
+    revenue_cny: 24.27
+    net_profit_cny: 7.10
+    net_margin: 29.3
+    total_shares: 8.96
+    float_ratio: 0.25
+    roe: 22.04
+    eps: 0.79
