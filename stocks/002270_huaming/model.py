@@ -4,24 +4,24 @@
 华明装备(002270) SOTP估值模型
 深交所主板，特高压变压器分接开关龙头，基于CNY计价。
 
-关键参数（2024年报）：
-- 总股本: 5.33亿股
-- 流通股本: 5.10亿股
-- 2024年报营收: 19.82亿元（+12% YoY）
-- 2024归母净利润: 4.71亿元（+22% YoY）
-- EPS: 0.89元
-- 毛利率: ~36%
-- 净利率: ~24%
-- ROE: ~14%
+关键参数（2025年报）：
+- 总股本: 8.96亿股
+- 流通股本: ~2.24亿股（实际流通比例约25%）
+- 2025年报营收: 24.27亿元（+12% YoY）
+- 2025归母净利润: 7.10亿元（+22% YoY）
+- EPS: 0.79元
+- 毛利率: 54.49%
+- 净利率: 29.65%
+- ROE: 22.04%
 
 商业模式：
 1. 特高压分接开关（交流/直流特高压变压器，壁垒极高）
 2. 电力设备与服务（电炉变压器、配网设备）
 3. 海外业务（东南亚/中东/一带一路）
 
-当前价(2026-05-13): ~7.5元（参考）
-总市值: ~40亿
-PE TTM: ~8x（低估值，电力设备稳健属性）
+当前价(2026-05-13): ~26元（深交所行情）
+总市值: ~233亿元
+PE TTM: ~33x（特高压龙头享受溢价）
 
 数据来源（硬编码，akshare因代理问题失败）：
 - 总股本/流通股本: 2024年报
@@ -44,10 +44,11 @@ class HuamingSOTP:
     """华明装备SOTP分部估值"""
 
     def __init__(self, segments: list, base_net_profit: float,
-                 profit_adjustment: float = 0.0):
+                 profit_adjustment: float = 0.0, shares: float = 8.96):
         self.segments = segments
         self.base_net_profit = base_net_profit
         self.profit_adjustment = profit_adjustment
+        self.shares = shares  # 总股本（亿股），从config读取
 
     @classmethod
     def from_config(cls, config_path: str = None, repo_root: str = None):
@@ -60,9 +61,11 @@ class HuamingSOTP:
             cfg = yaml.safe_load(f)
 
         segments = cfg['segments']
-        base_net_profit = cfg.get('base_net_profit', 4.71)
+        base_net_profit = cfg.get('base_net_profit', 7.10)
         profit_adj = cfg.get('profit_adjustment', 0.0)
-        return cls(segments, base_net_profit, profit_adj)
+        # 从stock_info读取总股本（2025年报：8.96亿股）
+        shares = cfg.get('stock_info', {}).get('total_shares', 8.96)
+        return cls(segments, base_net_profit, profit_adj, shares)
 
     def calculate(self, current_price: float) -> Dict[str, Any]:
         """计算SOTP估值"""
@@ -101,11 +104,10 @@ class HuamingSOTP:
         # 总净利
         total_nm = sum(s['net_profit_cny'] for s in seg_results) + self.profit_adjustment
 
-        # 目标价
-        shares = 5.33
-        target_base = sotp_cap_base / shares
-        target_min = sotp_cap_min / shares
-        target_max = sotp_cap_max / shares
+        # 目标价（使用实例的shares，从config读取）
+        target_base = sotp_cap_base / self.shares
+        target_min = sotp_cap_min / self.shares
+        target_max = sotp_cap_max / self.shares
 
         # 上涨空间
         upside = target_base / current_price - 1
@@ -144,9 +146,9 @@ def run_local_test():
         print(f"❌ 模型加载失败: {e}")
         return
 
-    # 当前价（参考2026年初价格，akshare失败故硬编码）
-    current_price = 7.50
-    print(f"当前价(参考): {current_price}元")
+    # 当前价（2026-05-13，深交所sz002270行情）
+    current_price = 26.01
+    print(f"当前价: {current_price}元")
 
     # 计算估值
     result = sotp.calculate(current_price)
@@ -182,13 +184,15 @@ def run_local_test():
     fcf_proj = [round(total_nm * (1 + g) * fcf_conv, 2) for g in growth_rates]
     print(f"  FCF预测: {fcf_proj}")
 
+    # 从config读取总股本
+    sotp_shares = sotp.shares
     engine = DiscountingEngine()
     dcf_result = engine.compute_dcf(
         fcf_projections=fcf_proj,
         terminal_fcf=fcf_proj[-1] * 1.03,
         wacc=wacc,
         net_debt=-8.0,  # 净现金
-        shares=5.33,
+        shares=sotp_shares,
         terminal_growth=0.03,
     )
     dcf_price = dcf_result['目标价_元']
@@ -202,12 +206,14 @@ def run_local_test():
         with open(WORK_DIR / 'stocks/002270_huaming/config.yaml') as f:
             cfg = yaml.safe_load(f)
 
+        sotp_shares = sotp.shares
         events = cfg.get('events', [])
         if events:
             pw = ProbabilityWeightEngine.from_config_list(events)
             weighted_cap = pw.apply(result['sotp_cap_base'])
-            weighted_price = weighted_cap / 5.33
+            weighted_price = weighted_cap / sotp_shares
             print(f"  SOTP基准市值: {result['sotp_cap_base']:.1f}亿")
+            print(f"  总股本: {sotp_shares:.2f}亿股")
             print(f"  综合乘数: {weighted_cap/result['sotp_cap_base']:.3f}x")
             print(f"  概率加权目标价: {weighted_price:.1f}元")
         else:
