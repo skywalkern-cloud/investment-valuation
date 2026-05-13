@@ -100,15 +100,6 @@ STOCK_REGISTRY = {
         "shares": 1.69,
         "config_path": "stocks/688608_hengxuan/config.yaml",
     },
-    "002270": {
-        "name": "华明装备",
-        "code": "002270",
-        "market": "SZ",
-        "currency": "CNY",
-        "symbol_tencent": "sz002270",
-        "shares": 5.33,
-        "config_path": "stocks/002270_huaming/config.yaml",
-    },
 }
 
 
@@ -220,30 +211,6 @@ def get_price_688608() -> float:
     return 170.70  # fallback
 
 
-def get_price_002270() -> float:
-    """获取华明装备A股实时股价（腾讯行情API）"""
-    try:
-        from common.stock_api import get_a_stock_quote
-        quotes = get_a_stock_quote(['002270'])
-        if quotes and quotes[0].get('price', 0) > 0:
-            return float(quotes[0]['price'])
-    except Exception as e:
-        print(f"⚠️ 腾讯行情002270失败: {e}")
-    # fallback: 腾讯直接请求
-    try:
-        import requests
-        resp = requests.get('https://qt.gtimg.cn/q=sz002270', timeout=10)
-        resp.encoding = 'gbk'
-        for line in resp.text.split('\n'):
-            if 'sz002270' in line:
-                parts = line.split('~')
-                price = float(parts[3]) if parts[3] else None
-                return price if price and price > 0 else 25.93
-    except Exception as e:
-        print(f"⚠️ 腾讯行情sz002270失败: {e}")
-    return 25.93  # fallback
-
-
 def get_current_price(stock_code: str) -> float:
     """根据股票代码获取实时股价"""
     if stock_code == "002428":
@@ -254,8 +221,6 @@ def get_current_price(stock_code: str) -> float:
         return get_price_06613()
     elif stock_code == "688608":
         return get_price_688608()
-    elif stock_code == "002270":
-        return get_price_002270()
     return 0.0
 
 
@@ -429,7 +394,6 @@ def run_yunnangeiyec_valuation(
         # 额外诊断信息
         "semi_nm": semi_nm,
         "trad_nm": trad_nm,
-        "trad_revenue": sotp_result['trad_revenue'],
         "total_nm": total_nm,
         "inp_revenue": sotp_result['semi_revenue'],
         "inp_price": 2.65,
@@ -564,151 +528,28 @@ def run_lens_valuation(
 
     try:
         from model import LensHK_SOTP
-        from common.core.discounting_engine import DiscountingEngine
-        from common.core.probability_weight import ProbabilityWeightEngine
-        import yaml
-
         sotp = LensHK_SOTP.from_config()
         sotp_result = sotp.calculate(current_price)
-        sotp_detail = sotp.get_sotp_detail()
+        sotp_detail = sotp.get_sotp_detail()  # segments/sotp_cap等在这里，不能用calculate()的原始返回值
         total_nm = sotp_result.get('total_net_profit', 0)
-        shares = sotp_result.get('shares', 52.79)
-        hkd_cny_rate = sotp_result.get('hkd_cny_rate', 0.92)
-
         growth_rates = [0.15, 0.18, 0.20, 0.18, 0.15]
-        fcf_conv = 0.85
+        fcf_conv = 0.65
         fcf_proj = [round(total_nm * (1 + g) * fcf_conv, 2) for g in growth_rates]
-
-        # DCF估值
-        engine = DiscountingEngine()
-        with warnings.catch_warnings():
-            warnings.simplefilter('ignore')
-            wacc = engine.calc_wacc(risk_free_rate=rf, beta=beta,
-                                    market_premium=0.07, auto_refresh_beta=True)
-        dcf_result = engine.compute_dcf(
-            fcf_projections=fcf_proj,
-            terminal_fcf=fcf_proj[-1],
-            wacc=wacc,
-            net_debt=0.0,
-            shares=shares,
-            terminal_growth=tg,
-        )
-        dcf_price_hkd = dcf_result['目标价_元']
-
-        # 概率加权
-        import sys
-        if 'yaml' not in sys.modules:
-            import yaml
-        config_path = repo_root / 'stocks/300433_lens/config.yaml'
-        with open(config_path, 'r') as f:
-            cfg = yaml.safe_load(f)
-        events = cfg.get('events', [])
-        financial_data = cfg.get('financial_data', {})
-        weighted_price_hkd = None
-        if events:
-            pw = ProbabilityWeightEngine.from_config_list(events)
-            sotp_cap_base = sotp_result.get('sotp_cap_base_hkd', 0)
-            weighted_cap = pw.apply(sotp_cap_base)
-            weighted_price_hkd = weighted_cap / shares
-
         return {
             "sotp_price": sotp_result.get('target_base_hkd'),
             "sotp_min": sotp_result.get('target_min_hkd', None),
             "sotp_max": sotp_result.get('target_max_hkd', None),
             "sotp_cap_base_hkd": sotp_result.get('sotp_cap_base_hkd'),
-            "dcf_price": dcf_price_hkd,
-            "weighted_price": weighted_price_hkd,
+            "dcf_price": 0,  # DCF在lens_cron.py单独计算，dashboard另行处理
+            "weighted_price": None,  # 概率加权在lens_cron.py单独计算
             "current_price": current_price,
-            "sotp_detail": sotp_detail,
+            "sotp_detail": sotp_detail,  # 用get_sotp_detail()的结果（含segments），不是calculate()原始返回值
             "fcf_proj": fcf_proj,
-            "wacc": wacc,
-            "financial_data": financial_data,
         }
     except Exception as e:
-        import traceback
-        st.error(f"⚠️ 蓝思科技估值计算失败: {str(e)[:200]}\n{traceback.format_exc()[:500]}")
+        st.error(f"⚠️ 蓝思科技估值计算失败: {str(e)[:200]}")
         return {"sotp_price": 0, "dcf_price": 0, "current_price": current_price, "fcf_proj": [0, 0, 0, 0, 0]}
 
-
-
-def run_huaming_valuation(
-    rf: float, beta: float, tg: float, current_price: float,
-    cost_of_debt: float = 0.045, tax_rate: float = 0.15, debt_ratio: float = 0.2
-) -> Dict[str, Any]:
-    """华明装备(002270)估值计算"""
-    import warnings
-    import yaml
-    from pathlib import Path
-    warnings.filterwarnings('ignore')
-
-    repo_root = Path(__file__).parent.parent.parent
-    import sys
-    if 'model' in sys.modules:
-        del sys.modules['model']
-    sys.path.insert(0, str(repo_root))
-    sys.path.insert(0, str(repo_root / 'stocks' / '002270_huaming'))
-    sys.path.insert(0, str(repo_root / 'common'))
-
-    try:
-        from model import HuamingSOTP
-        from common.core.discounting_engine import DiscountingEngine
-        from common.core.probability_weight import ProbabilityWeightEngine
-
-        sotp = HuamingSOTP.from_config()
-        sotp_result = sotp.calculate(current_price)
-
-        # 读取config中的events用于概率加权
-        config_path = repo_root / 'stocks/002270_huaming/config.yaml'
-        with open(config_path, 'r', encoding='utf-8') as f:
-            config = yaml.safe_load(f)
-
-        # DCF计算
-        total_nm = sotp_result.get('total_net_profit', 0)
-        shares = 8.96  # 亿股
-        wacc = rf + beta * 0.045  # A股制造业 WACC
-        growth_rates = [0.18, 0.16, 0.14, 0.12, 0.10]
-        fcf_conv = 0.65
-        fcf_proj = [round(total_nm * (1 + g) * fcf_conv, 2) for g in growth_rates]
-
-        engine = DiscountingEngine()
-        dcf_result = engine.compute_dcf(
-            fcf_projections=fcf_proj,
-            terminal_fcf=fcf_proj[-1] * (1 + tg),
-            wacc=wacc,
-            net_debt=0,  # 有息负债不多
-            shares=shares,
-            terminal_growth=tg,
-        )
-        dcf_price = dcf_result['目标价_元']
-
-        # 概率加权
-        sotp_cap_base = sotp_result.get('sotp_cap_base', 0)
-        events = config.get('events', [])
-        weighted_price = None
-        if events:
-            pw = ProbabilityWeightEngine.from_config_list(events)
-            weighted_cap = pw.apply(sotp_cap_base)
-            weighted_price = weighted_cap / shares
-
-        return {
-            "sotp_price": sotp_result.get('target_base', 0),
-            "sotp_min": sotp_result.get('target_min', None),
-            "sotp_max": sotp_result.get('target_max', None),
-            "dcf_price": dcf_price,
-            "weighted_price": weighted_price,
-            "current_price": current_price,
-            "sotp_detail": sotp_result,
-            "total_net_profit": total_nm,
-            "fcf_proj": fcf_proj,
-            "wacc": wacc,
-            "wacc_pct": wacc * 100,
-            "sotp_cap_base": sotp_cap_base,
-            "financial_data": config.get('financial_data', {}),
-        }
-    except Exception as e:
-        import traceback
-        st.error(f"⚠️ 华明装备估值计算失败: {str(e)[:200]}")
-        return {"sotp_price": 0, "dcf_price": 0, "current_price": current_price, "fcf_proj": [0, 0, 0, 0, 0]}
 
 
 def run_hengxuan_valuation(
@@ -1044,7 +885,6 @@ def main():
             "09988": "🇭🇰 阿里巴巴 (09988)",
             "06613": "🇭🇰 蓝思科技 (06613)",
             "688608": "🇨🇳 恒玄科技 (688608)",
-            "002270": "🇨🇳 华明装备 (002270)",
         }
         selected = st.selectbox(
             "选择股票",
@@ -1081,10 +921,6 @@ def main():
         elif selected == "688608":
             mp = 0.05   # 科创板 5%
             beta_default = 0.95
-            tg_default = 0.03
-        elif selected == "002270":
-            mp = 0.05   # A股特高压 5%
-            beta_default = 1.1
             tg_default = 0.03
         else:
             mp = 0.07   # 港股 7%
@@ -1164,105 +1000,6 @@ def main():
         sotp_min = val.get("sotp_min", None)
         sotp_max = val.get("sotp_max", None)
         df_history = pd.DataFrame()  # 恒玄暂无历史数据
-    elif selected == "002270":
-        val = run_huaming_valuation(
-            rf=rf_val, beta=beta, tg=tg, current_price=current_price
-        )
-        sotp_price = val.get("sotp_price", val.get("target_base", 0))
-        dcf_price = val.get("dcf_price", 0)
-        weighted_price = val.get("weighted_price", None)
-        sotp_min = val.get("sotp_min", None)
-        sotp_max = val.get("sotp_max", None)
-        df_history = pd.DataFrame()  # 华明暂无历史数据
-    # 002270: 数据来源 + SOTP分部分说明
-    if selected == "002270":
-        st.markdown("---")
-        financial_data = val.get('financial_data', {})
-        if financial_data:
-            sources = financial_data.get('data_sources', [])
-            key_metrics = financial_data.get('key_metrics', {})
-            base_year = financial_data.get('base_year', 'N/A')
-            st.markdown('<p class="section-header">📋 财务数据来源（华明装备SZ002270）</p>', unsafe_allow_html=True)
-            if key_metrics:
-                col1, col2, col3, col4 = st.columns(4)
-                with col1:
-                    st.metric("基准年份", base_year)
-                with col2:
-                    rev = key_metrics.get('revenue_cny', 0)
-                    st.metric("营收(CNY)", f"{rev:.1f}亿")
-                with col3:
-                    nm = key_metrics.get('net_profit_cny', 0)
-                    st.metric("净利润(CNY)", f"{nm:.1f}亿")
-                with col4:
-                    margin = key_metrics.get('net_margin', 0)
-                    st.metric("净利率", f"{margin:.1f}%")
-            if sources:
-                src_md = "**数据来源：** " + " | ".join([f"[{s.get('name','')}]({s.get('url','')})" for s in sources])
-                st.markdown(src_md)
-        st.markdown("<hr style='margin: 8px 0'>", unsafe_allow_html=True)
-        st.markdown('<p class="section-header">📊 SOTP分部分说明（华明装备SZ002270）</p>', unsafe_allow_html=True)
-        sotp_detail = val.get('sotp_detail', {})
-        segments = sotp_detail.get('segments', [])
-        if segments:
-            for seg in segments:
-                st.markdown(f"**【{seg.get('name','')}】**")
-                st.markdown(f"""
-                | 参数 | 值 |
-                |---|---|
-                | 2026E营收 | {seg.get('revenue_cny', 0):.1f}亿元 |
-                | 净利率 | {seg.get('net_margin', 0)*100:.0f}% |
-                | 净利润 | **{seg.get('net_profit_cny', 0):.2f}亿元** |
-                | PE区间 | {seg.get('pe_range','')}x |
-                | 市值区间 | {seg.get('cap_min',0):.1f} ~ {seg.get('cap_max',0):.1f}亿元 |
-                """.replace('{', '{').replace('}', '}'))
-                if seg.get('notes'):
-                    st.caption(f"📝 {seg['notes']}")
-            # SOTP合计
-            sotp_cap = val.get('sotp_cap_base', 0)
-            sotp_min_cap = sum(s.get('cap_min', 0) for s in segments)
-            sotp_max_cap = sum(s.get('cap_max', 0) for s in segments)
-            cur_p = val.get('current_price', 0)
-            st.markdown("**【SOTP合计】**")
-            st.markdown(f"""
-            | 指标 | 值 |
-            |---|---|
-            | SOTP总市值(中枢) | **{sotp_cap:.1f}亿元** |
-            | SOTP总市值区间 | {sotp_min_cap:.1f} ~ {sotp_max_cap:.1f}亿元 |
-            | 目标价区间 | {sotp_min_cap/8.96:.1f} ~ {sotp_max_cap/8.96:.1f}元 |
-            | 目标价中枢 | **{(sotp_cap/8.96):.1f}元** |
-            | 当前价 | {cur_p:.2f}元 |
-            """)
-        # DCF说明
-        st.markdown("<hr style='margin: 8px 0'>", unsafe_allow_html=True)
-        st.markdown('<p class="section-header">📊 DCF估值说明</p>', unsafe_allow_html=True)
-        wacc_pct = val.get('wacc_pct', 0)
-        fcf_proj = val.get('fcf_proj', [])
-        dcf_p = val.get('dcf_price', 0)
-        st.markdown(f"""
-        | 参数 | 值 |
-            |---|---|
-            | WACC | {wacc_pct:.1f}% |
-            | 永续增长率(TG) | 3% |
-            | 5年FCF预测 | {' → '.join([f'{x:.1f}亿' for x in fcf_proj])} |
-            | DCF目标价 | **{dcf_p:.1f}元** |
-        """)
-        st.caption("📝 DCF基于各分部净利润之和×0.65（FCF转化率）×折现计算，净债务假设为0")
-        # 概率加权说明
-        if val.get('weighted_price'):
-            st.markdown("<hr style='margin: 8px 0'>", unsafe_allow_html=True)
-            st.markdown('<p class="section-header">📊 概率加权估值说明</p>', unsafe_allow_html=True)
-            st.markdown("""
-            **概率加权逻辑**：基于三个情景事件，对SOTP市值进行概率加权
-
-            | 事件 | 概率 | 影响 | 说明 |
-            |---|---|---|---|
-            | 特高压建设加速 | 70% | ×1.15 | 新型电力系统建设推动特高压审批加速 |
-            | 海外订单突破 | 45% | ×1.12 | 一带一路沿线获得大单，东南亚/中东市场突破 |
-            | 竞争加剧/毛利承压 | 25% | ×0.88 | 竞争对手进入特高压分接开关市场 |
-
-            **计算公式**：加权市值 = SOTP×(0.70×1.15 + 0.45×1.12 - 0.25×0.12)
-            """)
-            st.caption(f"📝 最终概率加权目标价: {val.get('weighted_price', 0):.1f}元")
     else:
         val = run_alibaba_valuation(
             rf=rf_val, beta=beta, tg=tg, current_price=current_price,
@@ -1315,8 +1052,8 @@ def main():
         | 参数 | 值 |
         |---|---|
         | 产量 | 30吨/年 |
-        | 锗价 | 1.775万元/公斤 |
-        | 收入 | {val.get('trad_revenue', 0):.2f}亿元 |
+        | 锗价 | 1.775万元/公斤 (市场价17750元/kg) |
+        | 收入 | 53.25亿元 |
         | 净利率 | 30% |
         | 净利润 | **{trad_nm:.2f}亿元** |
         | PE区间 | 15-20x (传统业务折价) |
@@ -1344,34 +1081,9 @@ def main():
         | 上涨空间 | {_up_428:+.1f}% |
         """)
 
-    # 06613: 数据来源 + SOTP分部分说明
+    # 06613: SOTP分部分说明
     if selected == "06613":
         st.markdown("---")
-        financial_data = val.get('financial_data', {})
-        if financial_data:
-            sources = financial_data.get('data_sources', [])
-            key_metrics = financial_data.get('key_metrics', {})
-            base_year = financial_data.get('base_year', 'N/A')
-            st.markdown('<p class="section-header">📋 财务数据来源（蓝思科技HK06613）</p>', unsafe_allow_html=True)
-            # 关键指标行
-            if key_metrics:
-                col1, col2, col3, col4 = st.columns(4)
-                with col1:
-                    st.metric("基准年份", base_year)
-                with col2:
-                    rev = key_metrics.get('revenue_hkd', 0)
-                    st.metric("营收(HKD)", f"{rev:.1f}亿")
-                with col3:
-                    nm = key_metrics.get('net_profit_hkd', 0)
-                    st.metric("净利润(HKD)", f"{nm:.1f}亿")
-                with col4:
-                    margin = key_metrics.get('net_margin', 0)
-                    st.metric("净利率", f"{margin:.1f}%")
-            # 数据来源链接
-            if sources:
-                src_md = "**来源：** " + " | ".join([f"[{s.get('name','')}]({s.get('url','')})" for s in sources])
-                st.markdown(src_md)
-        st.markdown("<hr style='margin: 8px 0'>", unsafe_allow_html=True)
         st.markdown('<p class="section-header">📊 SOTP分部分说明（蓝思科技HK06613）</p>', unsafe_allow_html=True)
         sotp_detail = val.get('sotp_detail', {})
         segments = sotp_detail.get('segments', [])
