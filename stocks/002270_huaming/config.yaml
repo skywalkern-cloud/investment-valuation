@@ -1,0 +1,134 @@
+# 华明装备(002270) SOTP估值模型 - 配置文件
+# 深交所主板，特高压变压器分接开关龙头，A股（CNY）
+# 最后一更新: 2026-05-13
+#
+# 数据来源:
+#   - 实时股价: 腾讯行情 API (sz002270)
+#   - 历史财务: 雪球 https://xueqiu.com/S/SZ002270
+#   - 分部营收: 东方财富 https://data.eastmoney.com/stockData/002270.html
+#   - 2024年报: 深交所 https://www.szse.cn (搜索: 002270 年度报告)
+#   - 机构预测: 雪球/东财研报综合
+#
+# 注意: akshare代理问题，财务数据为参考公开信息硬编码
+
+stock_info:
+  name: 华明装备
+  code: "002270"
+  market: A股 (深交所主板)
+  currency: CNY
+  exchange: SZ
+  symbol_tencent: "sz002270"
+  total_shares: 5.33  # 亿股 (总股本)
+  float_shares: 5.10  # 亿股 (流通股本)
+  hkd_cny_rate: 0.92  # 不适用但保留
+
+# 业务分部配置（SOTP）
+segments:
+  # 特高压分接开关（国内绝对龙头，特高压市场占有率领先）
+  # 特高压是新型电力系统核心零部件，壁垒极高，格局稳定
+  - name: "特高压分接开关"
+    code: uhv
+    revenue_cny: 12.0   # 2026E营收（亿元）
+    net_margin: 0.38    # 净利率38%（龙头溢价+特高压高壁垒）
+    net_profit_cny: 4.56  # 12×38% = 4.56亿
+    pe_min: 30
+    pe_max: 45
+    pe_base: 38
+    notes: "特高压变压器分接开关国内龙头，交流/直流特高压全覆盖"
+
+  # 电力设备/服务（配网端，电炉变压器等）
+  - name: "电力设备与服务"
+    code: power
+    revenue_cny: 7.5    # 2026E营收（亿元）
+    net_margin: 0.22    # 净利率22%（电力设备稳健）
+    net_profit_cny: 1.65  # 7.5×22% = 1.65亿
+    pe_min: 18
+    pe_max: 28
+    pe_base: 22
+    notes: "电炉变压器、配网设备、电力服务，稳定贡献现金流"
+
+  # 海外业务（东南亚/中东/一带一路沿线）
+  - name: "海外业务"
+    code: overseas
+    revenue_cny: 2.5    # 2026E营收（亿元）
+    net_margin: 0.25    # 净利率25%（海外高壁垒市场）
+    net_profit_cny: 0.625  # 2.5×25% = 0.625亿
+    pe_min: 25
+    pe_max: 40
+    pe_base: 30
+    notes: "一带一路海外市场拓展，俄罗斯/东南亚/中东"
+
+# 业绩基准（2024年报）
+base_year: "2024"
+base_revenue: 19.82   # 2024年报营收（亿元）
+base_net_profit: 4.71  # 2024年报归母净利润（亿元）
+base_eps: 0.8929       # 2024EPS（摊薄，元）
+shares: 5.33           # 总股本（亿股）
+
+# 成长预期（2026-2028）
+growth:
+  uhv:
+    rev_growth: 0.15   # 特高压受益新型电力系统，15%增长
+    nm_improve: 0.02  # 净利率提升2%（规模效应）
+  power:
+    rev_growth: 0.08  # 电力设备稳健增长8%
+    nm_improve: 0.01
+  overseas:
+    rev_growth: 0.30  # 海外业务高增长30%（一带一路）
+    nm_improve: 0.00
+
+# DCF参数（保守估算）
+dcf:
+  wacc_base: 0.08      # WACC 8.0%（电力设备稳健，低于科创板）
+  wacc_min: 0.07
+  wacc_max: 0.09
+  tg: 0.03            # 永续增长率3%
+  net_debt: -8.0      # 净现金约8亿（资产负债表健康）
+
+# 敏感性分析
+sensitivity_analysis:
+  sotp:
+    pe_uhv_range: [30, 45]
+    pe_power_range: [18, 28]
+    pe_overseas_range: [25, 40]
+  dcf:
+    wacc_range: [0.07, 0.09]
+    tg_range: [0.02, 0.04]
+    terminal_multiple: [15, 25]
+
+# 事件驱动（概率加权）
+events:
+  - name: "特高压建设加速"
+    probability: 0.70
+    magnitude: 1.15  # 上涨15%
+    impact: positive
+    description: "新型电力系统建设推动特高压审批加速"
+
+  - name: "海外订单突破"
+    probability: 0.45
+    magnitude: 1.12  # 上涨12%
+    impact: positive
+    description: "一带一路沿线获得大单，东南亚/中东市场突破"
+
+  - name: "竞争加剧/毛利承压"
+    probability: 0.25
+    magnitude: 0.88  # 下跌12%
+    impact: negative
+    description: "竞争对手进入特高压分接开关市场"
+
+# 估值说明
+methodology_notes: |
+  - SOTP: 按业务分部估值，加权PE（中枢×净利润）
+  - DCF: 基于2024年净利×1.15（+15%增长）作为DCF起点
+  - 概率加权: 不同情景下的SOTP市值加权平均
+  
+  【华明装备核心逻辑】
+  - 特高压分接开关国内龙头（壁垒极高，格局稳定）
+  - 特高压受益新型电力系统/新能源消纳提速
+  - 海外一带一路市场开拓第二增长极
+  - 电力设备稳健贡献现金流
+
+display_preferences:
+  currency_symbol: "¥"
+  price_precision: 2
+  show_probability_weighted: true
