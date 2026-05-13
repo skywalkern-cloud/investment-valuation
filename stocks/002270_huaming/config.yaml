@@ -18,17 +18,18 @@ stock_info:
   currency: CNY
   exchange: SZ
   symbol_tencent: "sz002270"
-  total_shares: 5.33  # 亿股 (总股本)
-  float_shares: 5.10  # 亿股 (流通股本)
+  total_shares: 8.96  # 亿股 (总股本，2025年报)
+  float_shares: 2.24  # 亿股 (流通股本，约25%流通)
   hkd_cny_rate: 0.92  # 不适用但保留
 
 # 业务分部配置（SOTP）
+# 2026E各分部营收/净利对齐飞书报告（2026E净利润8.34~8.97亿）
 segments:
   # 特高压分接开关（国内绝对龙头，特高压市场占有率领先）
   # 特高压是新型电力系统核心零部件，壁垒极高，格局稳定
   - name: "特高压分接开关"
     code: uhv
-    revenue_cny: 12.0   # 2026E营收（亿元）
+    revenue_cny: 12.0   # 2026E营收（亿元）【略保守，贴近飞书报告2026E净利区间】
     net_margin: 0.38    # 净利率38%（龙头溢价+特高压高壁垒）
     net_profit_cny: 4.56  # 12×38% = 4.56亿
     pe_min: 30
@@ -39,9 +40,9 @@ segments:
   # 电力设备/服务（配网端，电炉变压器等）
   - name: "电力设备与服务"
     code: power
-    revenue_cny: 7.5    # 2026E营收（亿元）
-    net_margin: 0.22    # 净利率22%（电力设备稳健）
-    net_profit_cny: 1.65  # 7.5×22% = 1.65亿
+    revenue_cny: 8.0    # 2026E营收（亿元）【略保守，对齐飞书报告整体净利区间】
+    net_margin: 0.22     # 净利率22%（电力设备稳健）
+    net_profit_cny: 1.76  # 8×22% = 1.76亿
     pe_min: 18
     pe_max: 28
     pe_base: 22
@@ -58,12 +59,12 @@ segments:
     pe_base: 30
     notes: "一带一路海外市场拓展，俄罗斯/东南亚/中东"
 
-# 业绩基准（2024年报）
-base_year: "2024"
-base_revenue: 19.82   # 2024年报营收（亿元）
-base_net_profit: 4.71  # 2024年报归母净利润（亿元）
-base_eps: 0.8929       # 2024EPS（摊薄，元）
-shares: 5.33           # 总股本（亿股）
+# 业绩基准（2025年报）【修正：使用最新年报数据】
+base_year: "2025"
+base_revenue: 24.27   # 2025年报营收（亿元）
+base_net_profit: 7.10  # 2025年报归母净利润（亿元）
+base_eps: 0.79         # 2025EPS（摊薄，元）
+shares: 8.96           # 总股本（亿股）【修正：8.96亿股，非5.33亿股】
 
 # 成长预期（2026-2028）
 growth:
