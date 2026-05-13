@@ -100,6 +100,16 @@ STOCK_REGISTRY = {
         "shares": 1.69,
         "config_path": "stocks/688608_hengxuan/config.yaml",
     },
+    "002270": {
+        "name": "华明装备",
+        "code": "002270",
+        "market": "SZ",
+        "currency": "CNY",
+        "currency_symbol": "¥",
+        "symbol_tencent": "sz002270",
+        "shares": 8.96,
+        "config_path": "stocks/002270_huaming/config.yaml",
+    },
 }
 
 
@@ -211,6 +221,22 @@ def get_price_688608() -> float:
     return 170.70  # fallback
 
 
+def get_price_002270() -> float:
+    """获取华明装备A股实时股价（腾讯行情API）"""
+    try:
+        import requests
+        resp = requests.get('https://qt.gtimg.cn/q=sz002270', timeout=10)
+        resp.encoding = 'gbk'
+        for line in resp.text.split('\n'):
+            if 'sz002270' in line:
+                parts = line.split('~')
+                price = float(parts[3]) if parts[3] else None
+                return price if price and price > 0 else 25.93
+    except Exception as e:
+        print(f"⚠️ 腾讯行情sz002270失败: {e}")
+    return 25.93  # fallback
+
+
 def get_current_price(stock_code: str) -> float:
     """根据股票代码获取实时股价"""
     if stock_code == "002428":
@@ -221,6 +247,8 @@ def get_current_price(stock_code: str) -> float:
         return get_price_06613()
     elif stock_code == "688608":
         return get_price_688608()
+    elif stock_code == "002270":
+        return get_price_002270()
     return 0.0
 
 
@@ -671,6 +699,92 @@ def run_hengxuan_valuation(
         st.error(f"⚠️ 恒玄科技估值计算失败: {str(e)[:200]}")
         return {"sotp_price": 0, "dcf_price": 0, "current_price": current_price, "fcf_proj": [0, 0, 0, 0, 0]}
 
+
+# ========== 华明装备估值 ==========
+def run_huaming_valuation(
+    rf: float, beta: float, tg: float, current_price: float,
+    cost_of_debt: float = 0.045, tax_rate: float = 0.15, debt_ratio: float = 0.2
+) -> Dict[str, Any]:
+    """华明装备(002270)估值计算"""
+    import warnings
+    import yaml
+    from pathlib import Path
+    warnings.filterwarnings('ignore')
+
+    repo_root = Path(__file__).parent.parent.parent
+    import sys
+    if 'model' in sys.modules:
+        del sys.modules['model']
+    if 'huaming_model' in sys.modules:
+        del sys.modules['huaming_model']
+    sys.path.insert(0, str(repo_root))
+    sys.path.insert(0, str(repo_root / 'stocks' / '002270_huaming'))
+    sys.path.insert(0, str(repo_root / 'common'))
+
+    try:
+        import importlib.machinery
+        model_path = repo_root / 'stocks' / '002270_huaming' / 'model.py'
+        loader = importlib.machinery.SourceFileLoader('huaming_model', str(model_path))
+        huaming_module = loader.load_module()
+        HuamingSOTP = huaming_module.HuamingSOTP
+
+        from common.core.discounting_engine import DiscountingEngine
+        from common.core.probability_weight import ProbabilityWeightEngine
+
+        sotp = HuamingSOTP.from_config()
+        sotp_result = sotp.calculate(current_price)
+
+        config_path = repo_root / 'stocks/002270_huaming/config.yaml'
+        with open(config_path, 'r', encoding='utf-8') as f:
+            config = yaml.safe_load(f)
+
+        total_nm = sotp_result.get('total_net_profit', 0)
+        shares = 8.96
+        wacc = rf + beta * 0.045
+        growth_rates = [0.18, 0.16, 0.14, 0.12, 0.10]
+        fcf_conv = 0.65
+        fcf_proj = [round(total_nm * (1 + g) * fcf_conv, 2) for g in growth_rates]
+
+        engine = DiscountingEngine()
+        dcf_result = engine.compute_dcf(
+            fcf_projections=fcf_proj,
+            terminal_fcf=fcf_proj[-1] * (1 + tg),
+            wacc=wacc,
+            net_debt=0,
+            shares=shares,
+            terminal_growth=tg,
+        )
+        dcf_price = dcf_result['目标价_元']
+
+        sotp_cap_base = sotp_result.get('sotp_cap_base', 0)
+        events = config.get('events', [])
+        weighted_price = None
+        if events:
+            pw = ProbabilityWeightEngine.from_config_list(events)
+            weighted_cap = pw.apply(sotp_cap_base)
+            weighted_price = weighted_cap / shares
+
+        return {
+            "sotp_price": sotp_result.get('target_base', 0),
+            "sotp_min": sotp_result.get('target_min', None),
+            "sotp_max": sotp_result.get('target_max', None),
+            "dcf_price": dcf_price,
+            "weighted_price": weighted_price,
+            "current_price": current_price,
+            "sotp_detail": sotp_result,
+            "total_net_profit": total_nm,
+            "fcf_proj": fcf_proj,
+            "wacc": wacc,
+            "wacc_pct": wacc * 100,
+            "sotp_cap_base": sotp_cap_base,
+            "financial_data": config.get('financial_data', {}),
+        }
+    except Exception as e:
+        import traceback
+        st.error(f"⚠️ 华明装备估值计算失败: {str(e)[:200]}")
+        return {"sotp_price": 0, "dcf_price": 0, "current_price": current_price, "fcf_proj": [0, 0, 0, 0, 0]}
+
+
 # ========== 趋势图 ==========
 def render_trend(df: pd.DataFrame, stock_code: str):
     st.markdown('<p class="section-header">📈 历史趋势</p>', unsafe_allow_html=True)
@@ -926,6 +1040,7 @@ def main():
             "09988": "🇭🇰 阿里巴巴 (09988)",
             "06613": "🇭🇰 蓝思科技 (06613)",
             "688608": "🇨🇳 恒玄科技 (688608)",
+            "002270": "🇨🇳 华明装备 (002270)",
         }
         selected = st.selectbox(
             "选择股票",
@@ -1041,6 +1156,16 @@ def main():
         sotp_min = val.get("sotp_min", None)
         sotp_max = val.get("sotp_max", None)
         df_history = pd.DataFrame()  # 恒玄暂无历史数据
+    elif selected == "002270":
+        val = run_huaming_valuation(
+            rf=rf_val, beta=beta, tg=tg, current_price=current_price
+        )
+        sotp_price = val.get("sotp_price", val.get("target_base", 0))
+        dcf_price = val.get("dcf_price", 0)
+        weighted_price = val.get("weighted_price", None)
+        sotp_min = val.get("sotp_min", None)
+        sotp_max = val.get("sotp_max", None)
+        df_history = pd.DataFrame()  # 华明暂无历史数据
     else:
         val = run_alibaba_valuation(
             rf=rf_val, beta=beta, tg=tg, current_price=current_price,
