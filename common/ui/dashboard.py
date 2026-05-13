@@ -1318,6 +1318,97 @@ def main():
             | 概率加权 | {(val.get('weighted_price') or 0):.2f}元 |
             """)
 
+    # 002270: SOTP分部分说明 + DCF说明 + 概率加权说明
+    if selected == "002270":
+        sotp_detail = val.get('sotp_detail', {})
+        segments = sotp_detail.get('segments', [])
+        sotp_cap = val.get('sotp_cap_base', 0)
+        sotp_price_val = val.get('sotp_price', 0)
+        cur_p = val.get('current_price', 0)
+        dcf_p = val.get('dcf_price', 0)
+        weighted_p = val.get('weighted_price', 0)
+        wacc_pct = val.get('wacc_pct', 0)
+        fcf_proj = val.get('fcf_proj', [])
+        financial_data = val.get('financial_data', {})
+
+        st.markdown("---")
+        if financial_data:
+            sources = financial_data.get('data_sources', [])
+            key_metrics = financial_data.get('key_metrics', {})
+            base_year = financial_data.get('base_year', 'N/A')
+            st.markdown('<p class="section-header">📋 财务数据来源（华明装备SZ002270）</p>', unsafe_allow_html=True)
+            if key_metrics:
+                col1, col2, col3, col4 = st.columns(4)
+                with col1:
+                    st.metric("基准年份", base_year)
+                with col2:
+                    st.metric("营收(CNY)", f"{key_metrics.get('revenue_cny', 0):.1f}亿")
+                with col3:
+                    st.metric("净利润(CNY)", f"{key_metrics.get('net_profit_cny', 0):.1f}亿")
+                with col4:
+                    st.metric("净利率", f"{key_metrics.get('net_margin', 0):.1f}%")
+            if sources:
+                src_md = "**数据来源：** " + " | ".join([f"[{s.get('name','')}]({s.get('url','')})" for s in sources])
+                st.markdown(src_md)
+            st.markdown("<hr style='margin: 8px 0'>", unsafe_allow_html=True)
+
+        st.markdown('<p class="section-header">📊 SOTP分部分说明（华明装备SZ002270）</p>', unsafe_allow_html=True)
+        if segments:
+            for seg in segments:
+                st.markdown(f"**【{seg.get('name','')}】**")
+                st.markdown(f"""
+                | 参数 | 值 |
+                |---|---|
+                | 2026E营收 | {seg.get('revenue_cny', 0):.1f}亿元 |
+                | 净利率 | {seg.get('net_margin', 0)*100:.0f}% |
+                | 净利润 | **{seg.get('net_profit_cny', 0):.2f}亿元** |
+                | PE区间 | {seg.get('pe_range','')}x |
+                | 市值区间 | {seg.get('cap_min',0):.1f} ~ {seg.get('cap_max',0):.1f}亿元 |
+                """)
+                if seg.get('notes'):
+                    st.caption(f"📝 {seg['notes']}")
+
+            sotp_min_cap = sum(s.get('cap_min', 0) for s in segments)
+            sotp_max_cap = sum(s.get('cap_max', 0) for s in segments)
+            st.markdown("**【SOTP合计】**")
+            st.markdown(f"""
+            | 指标 | 值 |
+            |---|---|
+            | SOTP总市值(中枢) | **{sotp_cap:.1f}亿元** |
+            | SOTP总市值区间 | {sotp_min_cap:.1f} ~ {sotp_max_cap:.1f}亿元 |
+            | 目标价区间 | {sotp_min_cap/8.96:.1f} ~ {sotp_max_cap/8.96:.1f}元 |
+            | 目标价中枢 | **{sotp_price_val:.1f}元** |
+            | 当前价 | {cur_p:.2f}元 |
+            """)
+
+        st.markdown("<hr style='margin: 8px 0'>", unsafe_allow_html=True)
+        st.markdown('<p class="section-header">📊 DCF估值说明</p>', unsafe_allow_html=True)
+        st.markdown(f"""
+        | 参数 | 值 |
+        |---|---|
+        | WACC | {wacc_pct:.1f}% |
+        | 永续增长率(TG) | 3% |
+        | 5年FCF预测 | {' → '.join([f'{x:.1f}亿' for x in fcf_proj])} |
+        | DCF目标价 | **{dcf_p:.1f}元** |
+        """)
+        st.caption("📝 DCF基于各分部净利润之和×0.65（FCF转化率）×折现计算，净债务假设为0")
+
+        if weighted_p:
+            st.markdown("<hr style='margin: 8px 0'>", unsafe_allow_html=True)
+            st.markdown('<p class="section-header">📊 概率加权估值说明</p>', unsafe_allow_html=True)
+            st.markdown("""
+            **概率加权逻辑**：基于三个情景事件，对SOTP市值进行概率加权
+
+            | 事件 | 概率 | 影响 | 说明 |
+            |---|---|---|---|
+            | 特高压建设加速 | 70% | ×1.15 | 新型电力系统建设推动特高压审批加速 |
+            | 海外订单突破 | 45% | ×1.12 | 一带一路沿线获得大单，东南亚/中东市场突破 |
+            | 竞争加剧/毛利承压 | 25% | ×0.88 | 竞争对手进入特高压分接开关市场 |
+
+            **计算公式**：加权市值 = SOTP×(0.70×1.15 + 0.45×1.12 - 0.25×0.12)
+            """)
+            st.caption(f"📝 最终概率加权目标价: {weighted_p:.1f}元")
+
     # 09988: 端到端敏感性分析展示
     if selected == "09988" and val.get("sensitivity"):
         st.markdown("---")
