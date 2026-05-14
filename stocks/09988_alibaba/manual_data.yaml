@@ -1,70 +1,124 @@
 # 阿里巴巴(09988) 手动数据
-# 更新日期: 2026-04-26
+# 更新日期: 2026-05-14（根据FY2026官方财报修正）
 
-date: "2026-04-26"
+date: "2026-05-14"
 
 market:
-  current_price: 131.8
+  current_price: 143.1
   currency: "HKD"
   exchange: "HKEX"
-  last_updated: "2026-04-24"  # 最新收盘价
+  last_updated: "2026-05-14"  # 新浪实时行情
+
+# ── FY2026 官方数据 ──────────────────────────────────────
+# 数据来源：阿里巴巴官方业绩公告（2026年3月季度及2026财年）
+# 原文：https://www.alibabagroup.com/document-1991237455038119936
+#
+# ⚠️ FY2026 vs FY2025 关键变化：
+#   非GAAP净利: 606亿 → 1581亿（FY2025），下降62%
+#   自由现金流: -466亿（净流出）→ +739亿（FY2025）
+#   经调整EBITA: 764亿 → 1733亿（FY2025），下降56%
+#   营收: 10237亿（+3%同口径+11%）
+# ──────────────────────────────────────────────────────
 
 commerce:
-  GMV: 80000
-  monetization_rate: 0.045
-  customer_management_revenue: 2800
-  direct_sales: 900
-  operating_profit: 850
-  operating_margin: 0.22
+  revenue: 8000        # 估算（总营收-云-国际-其他）
+  CMR_revenue: 3000   # 估算（CMR同口径+8%）
+  operating_profit: 500  # 中国电商EBITA估算（闪购亏损侵蚀）
+  operating_margin: 0.06  # 大幅下降（FY2025约22%）
+  CMR_growth: 0.08     # 同口径+8%
+  # 88VIP: 6200万+
 
 cloud:
-  revenue: 1100
-  operating_profit: 220
-  operating_margin: 0.20
-  AI_revenue_ratio: 0.25
+  revenue: 1471        # FY2026全年云智能集团收入（+18%）
+  revenue_q4: 416       # Q4单季416亿（+38%）
+  AI_revenue: 359      # FY2026全年AI相关（Q4 90亿×4估算）
+  AI_revenue_ratio: 0.30  # AI占云外部收入约30%
+  operating_profit: 132  # Q4 EBITA 38亿估算（利润率~9%）
+  operating_margin: 0.09  # 9%（FY2025约7.4%）
+  growth: 0.38         # Q4同比+38%
 
 international:
-  revenue: 800
-  operating_profit: 40
-  operating_margin: 0.05
+  revenue: 1050        # FY2026全年（零售+批发，估算）
+  revenue_q4: 354     # Q4: 289亿+65亿
+  operating_profit: -5  # 接近盈亏平衡（Q4亏损1.38亿）
+  operating_margin: -0.005  # 接近盈亏
 
 cainiao:
-  revenue: 400
-  operating_profit: 16
-  operating_margin: 0.04
+  revenue: 450         # 估算
+  operating_profit: 5
+  operating_margin: 0.01
 
 media:
-  revenue: 300
-  operating_profit: 6
-  operating_margin: 0.02
+  revenue: 250
+  operating_profit: -20  # 亏损（优酷等）
+  operating_margin: -0.08
 
 innovation:
-  revenue: 200
-  operating_profit: 10
-  operating_margin: 0.05
+  revenue: 300         # 包含盒马、阿里健康等
+  operating_profit: -50  # 主要受千问App用户获取拖累
+  operating_margin: -0.17
 
 financials:
-  revenue: 5600
-  net_profit: 720
-  gaap_net_profit: 580
-  eps: 8.5
-  total_shares: 474.9
-  free_float_shares: 47.5
-  gross_margin: 0.42
-  operating_margin: 0.18
-  roe: 0.12
+  # FY2026全年
+  revenue: 10237       # 总营收（亿元 CNY）
+  revenue_yoy: 0.03     # +3%（同口径+11%）
+  adjusted_ebita: 764   # 经调整EBITA（亿元 CNY），-56% YoY
+  gaap_net_profit: 1059  # 归属净利润（亿元 CNY），-19%
+  non_gaap_net_profit: 607  # 非GAAP净利（亿元 CNY），-62%
+  non_gaap_eps: 3.35   # 港元
+  free_cash_flow: -466  # 自由现金流（亿元 CNY），从+739亿→-466亿
+  cash: 5208           # 现金及流动投资（亿元 CNY）
+  eps_diluted_hkd: 5.50  # 稀释每股收益（港元）
+
+  # FY2025全年（对比）
+  FY2025:
+    revenue: 9411
+    adjusted_ebita: 1733
+    non_gaap_net_profit: 1581
+    free_cash_flow: 739
+
+  # 估值相关指标
+  gross_margin: 0.38
+  operating_margin: 0.05   # FY2026经营利润率（下降）
+  roe: 0.08              # FY2026 ROE（下降）
 
 holdings:
   ant_group:
     stake: 0.33
-    cost_per_share: 8.3
-    last_valuation: 3000
+    basis: "成本法/估值"
+    last_valuation_per_share: 8.3
+    note: "约33%持股，2020年估值3000亿美元（IPO暂停）"
   others:
-    equity_investments: 800
+    equity_investments: 600  # 联营公司投资（估算）
 
+# FCF预测（FY2026E~FY2030E，亿元 CNY）
+# ⚠️ FY2026实际为-466亿（投入期），需恢复后才能正值
+# 假设随即时零售改善+云盈利提升，FY2027开始恢复
 fcf_projections:
-  - 2025: 620
-  - 2026: 680
-  - 2027: 750
-  - 2028: 830
-  - 2029: 920
+  2026: -466   # FY2026实际
+  2027: 200     # 恢复期（保守）
+  2028: 500
+  2029: 700
+  2030: 900
+
+# ── 估值调整说明（2026-05-14）──────────────────────────
+#
+# 【下调原因】
+# 1. 非GAAP净利从1581亿→607亿（-62%），远低于预期
+# 2. 自由现金流转负（-466亿），从+739亿大幅恶化
+# 3. 即时零售（闪购）仍在大量投入，EBITA下降40%
+# 4. All Others亏损从34亿→428亿（扩大11倍）
+#
+# 【维持因素】
+# 1. 营收破万亿（10237亿），同口径+11%仍健康
+# 2. 云智能+38%且AI进入商业化回报周期
+# 3. 88VIP 6200万护城河深厚
+# 4. 现金5208亿，弹药充裕
+# 5. 国际业务接近盈亏平衡
+#
+# 【估值影响】
+# - 核心商业PE给18-28倍（不变，CMR同口径+8%证明平台仍健康）
+# - 云智能PE给30-45倍（不变，+38%增长确认商业化）
+# - 国际商业PS给0.8倍（不变，接近盈亏平衡）
+# - 但分部净利估算需要大幅下调（因为整体净利下降）
+# ──────────────────────────────────────────────────────
