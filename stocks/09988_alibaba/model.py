@@ -44,55 +44,47 @@ class AlibabaSOTP:
     阿里巴巴SOTP (Sum-of-the-parts) 估值模型
 
     分部:
-    1. 核心商业 (淘宝/天猫) - PE×14
-    2. 云业务 (阿里云) - PE×20
-    3. 国际商业 - PE×12
-    4. 菜鸟物流 - PE×10
-    5. 数字媒体 - PE×7
-    6. 创新及其他 - PE×8
-    7. 蚂蚁集团(成本法) - +约3300亿元
+    1. 核心商业 (淘宝/天猫) - PE×18-28x
+    2. 云业务 (阿里云) - PE×30-45x
+    3. 国际商业 - PS×0.8x
+    4. 其他业务 (菜鸟/数字媒体/创新等) - 残值
+    5. 控股权益 (蚂蚁集团+其他投资)
+
+    FY2026 实际数据（官方业绩公告）:
+    - 总营收: 10236.70亿 CNY（同口径+11%）
+    - 非GAAP净利: 606.58亿 CNY（-62% YoY）
+    - 自由现金流: -466.09亿 CNY（投入期）
+    - 云智能: 1471亿 CNY（+18%），Q4单季416亿（+38%）
+    - 国际商业: Q4接近盈亏平衡（亏损1.38亿）
     """
 
-    # ── 简化SOTP参数 ─────────────────────────────────────────
-    # 估值单位: 亿元 CNY (转换为HKD除以 hkd_rate)
-    # 数据来源:
-    #   - FY2025年报 (年营收~9600亿RMB, 年净利~800亿RMB)
-    #   - akshare TTM指标 (总股本191.9亿H股, TTM营收9963亿HKD)
-    #   - FY2026一致预期 ~1100亿 CNY 净利 (non-GAAP)
-    TOTAL_NM_CNY = 1100   # FY2026E 归母净利 (亿元 CNY)
-    SHARES = 191.9        # 亿H股 (akshare HK总股本)
+    # ── FY2026 实际参数 ─────────────────────────────────────
+    TOTAL_NM_CNY = 607   # FY2026 实际非GAAP归母净利（亿元 CNY）
+    SHARES = 191.9       # 亿H股
 
-    # 核心商业: 总净利×80%, 成熟业务给予 18-28x PE
-    CORE_NM_PCT = 0.80
+    # 核心商业: 总净利×87%，给予 PE 18-28x
+    # FY2026经调整EBITA下降40%（闪购投入），但CMR同口径+8%证明平台仍健康
+    CORE_NM_PCT = 0.87
     CORE_PE_MIN, CORE_PE_MAX = 18, 28
 
-    # 云智能: FY2026E营收~1300亿CNY, 净利率~22%, 给予 30-45x PE
-    CLOUD_REV_CNY = 1300   # 亿元 CNY (FY2026E)
-    CLOUD_NM_PCT = 0.22   # 净利率
+    # 云智能: FY2026全年云智能集团收入1471亿CNY, +18%
+    # Q4单季416亿（+38%），AI相关收入359亿（连续11季度三位数增长）
+    # 经调整EBITA利润率约9%（FY2025为7.4%），尚未恢复到此前的20%+水平
+    CLOUD_REV_CNY = 1471   # 亿元 CNY (FY2026实际)
+    CLOUD_NM_PCT = 0.09   # 净利率约9%（Q4利润率9%，随规模改善有望回归15-20%）
     CLOUD_PE_MIN, CLOUD_PE_MAX = 30, 45
 
-    # 国际商业: Lazada/Trendyol等 FY2026E营收~1000亿CNY, 仍亏损
-    #           给予 0.8x PS (参考 Shopify 1.5x, 考虑亏损折价)
-    INTL_REV_CNY = 1000    # 亿元 CNY (FY2026E)
-    INTL_PS = 0.8          # Price/Sales
+    # 国际商业: FY2026Q4收入289亿+65亿=354亿，接近盈亏平衡
+    INTL_REV_CNY = 1050    # FY2026全年估算（亿元 CNY）
+    INTL_PS = 0.8          # Price/Sales（接近盈亏平衡，给0.8x）
 
-    # 其他业务 (菜鸟/数字媒体/创新等): 合计约300亿CNY市值
-    OTHER_VALUE_CNY = 300  # 亿元 CNY (残值)
-
-    DIVISIONS = [
-        # (name, net_profit_亿, pe_min, pe_max, pe_base)
-        # 核心商业：FY2026E 1100亿×80%=880亿 CNY, PE 18-28x
-        ("核心商业", round(TOTAL_NM_CNY * CORE_NM_PCT, 0), CORE_PE_MIN, CORE_PE_MAX, 23),
-        # 阿里云：FY2026E 1300亿×22%=286亿 CNY, PE 30-45x
-        ("云智能", round(CLOUD_REV_CNY * CLOUD_NM_PCT, 0), CLOUD_PE_MIN, CLOUD_PE_MAX, 38),
-        # 国际商业：PS 0.8x (亏损业务, 用PS而非PE)
-        ("国际商业(PS)", 0, 0, 0, 0),   # PS模式, 单独处理
-        # 其他业务
-        ("其他业务", 0, 0, 0, 0),
-    ]
+    # 其他业务 (菜鸟/数字媒体/创新等): 残值
+    # FY2026 All Others亏损扩大至428亿（千问App用户获取成本）
+    OTHER_VALUE_CNY = 150  # 亿元 CNY (残值，下调)
 
     HOLDINGS = {
-        "蚂蚁集团": 500,    # 亿元 CNY (33%×1500亿估值, 保守)
+        "蚂蚁集团": 500,    # 亿元 CNY (33%×1500亿估值)
+        "其他投资": 150,    # 亿元 CNY (联营上市公司权益)
     }
 
     def __init__(
@@ -109,15 +101,8 @@ class AlibabaSOTP:
         self.CLOUD_PE_MIN = cloud_pe_min
         self.CLOUD_PE_MAX = cloud_pe_max
         self.INTL_PS = intl_ps
-        # DIVISIONS uses class-level constants, update here
-        self.DIVISIONS = [
-            ("核心商业", round(self.TOTAL_NM_CNY * self.CORE_NM_PCT, 0), self.CORE_PE_MIN, self.CORE_PE_MAX, 23),
-            ("云智能", round(self.CLOUD_REV_CNY * self.CLOUD_NM_PCT, 0), self.CLOUD_PE_MIN, self.CLOUD_PE_MAX, 38),
-            ("国际商业(PS)", 0, 0, 0, 0),
-            ("其他业务", 0, 0, 0, 0),
-        ]
 
-    def run(self, current_price: float = 95.0) -> Dict[str, Any]:
+    def run(self, current_price: float = 143.1) -> Dict[str, Any]:
         """
         简化SOTP估值:
         - 核心商业: PE×净利
@@ -132,42 +117,53 @@ class AlibabaSOTP:
         total_max = 0.0
         total_nm = 0.0
 
-        for name, nm, pe_min, pe_max, pe_base in self.DIVISIONS:
-            # 国际商业(PS) 和 其他业务: 不走PE, 单独处理
-            if name in ("国际商业(PS)", "其他业务"):
-                continue
-            min_cap = nm * pe_min
-            max_cap = nm * pe_max
-            mid_cap = (min_cap + max_cap) / 2
-            total_min += min_cap
-            total_max += max_cap
-            total_nm += nm
+        # ── 核心商业 ──
+        core_nm = round(self.TOTAL_NM_CNY * self.CORE_NM_PCT, 0)
+        core_min = core_nm * self.CORE_PE_MIN
+        core_max = core_nm * self.CORE_PE_MAX
+        core_mid = (core_min + core_max) / 2
+        total_min += core_min
+        total_max += core_max
+        total_nm += core_nm
+        divisions_result.append({
+            'name': '核心商业(淘宝/天猫)',
+            '分部净利润_亿': core_nm,
+            'PE区间': f"{self.CORE_PE_MIN}x~{self.CORE_PE_MAX}x",
+            '分部市值_亿_区间': (core_min, core_max),
+            '分部市值_亿_中枢': core_mid,
+        })
 
-            divisions_result.append({
-                'name': name,
-                '分部净利润_亿': nm,
-                'PE区间': f"{pe_min}x~{pe_max}x",
-                'PE_base': pe_base,
-                '分部市值_亿_区间': (min_cap, max_cap),
-                '分部市值_亿_中枢': mid_cap,
-            })
+        # ── 云智能 ──
+        cloud_nm = round(self.CLOUD_REV_CNY * self.CLOUD_NM_PCT, 0)
+        cloud_min = cloud_nm * self.CLOUD_PE_MIN
+        cloud_max = cloud_nm * self.CLOUD_PE_MAX
+        cloud_mid = (cloud_min + cloud_max) / 2
+        total_min += cloud_min
+        total_max += cloud_max
+        total_nm += cloud_nm
+        divisions_result.append({
+            'name': '云智能(阿里云)',
+            '分部净利润_亿': cloud_nm,
+            'PE区间': f"{self.CLOUD_PE_MIN}x~{self.CLOUD_PE_MAX}x",
+            '分部市值_亿_区间': (cloud_min, cloud_max),
+            '分部市值_亿_中枢': cloud_mid,
+        })
 
-        # 国际商业: PS×营收 (亏损, 不适用PE)
+        # ── 国际商业(PS) ──
         intl_min = self.INTL_REV_CNY * self.INTL_PS
-        intl_max = intl_min  # PS 单倍数
+        intl_max = intl_min
         intl_mid = intl_min
         total_min += intl_min
         total_max += intl_max
         divisions_result.append({
-            'name': '国际商业',
+            'name': '国际商业(Lazada/Trendyol)',
             '分部净利润_亿': 0,
             'PE区间': f"PS={self.INTL_PS}x",
-            'PE_base': self.INTL_PS,
             '分部市值_亿_区间': (intl_min, intl_max),
             '分部市值_亿_中枢': intl_mid,
         })
 
-        # 其他业务: 残值
+        # ── 其他业务: 残值 ──
         other_val = self.OTHER_VALUE_CNY
         total_min += other_val
         total_max += other_val
@@ -175,20 +171,19 @@ class AlibabaSOTP:
             'name': '其他(菜鸟/媒体/创新)',
             '分部净利润_亿': 0,
             'PE区间': '残值',
-            'PE_base': 0,
             '分部市值_亿_区间': (other_val, other_val),
             '分部市值_亿_中枢': other_val,
         })
 
-        # 加回控股权益
+        # ── 控股权益 ──
         holdings_value = sum(self.HOLDINGS.values())
         total_min += holdings_value
         total_max += holdings_value
+
         total_mid = (total_min + total_max) / 2
 
         # 转换为每股价格 (港元)
         shares = self.SHARES  # 亿H股
-
         sotp_min_hkd = total_min / shares / hkd_rate
         sotp_max_hkd = total_max / shares / hkd_rate
         sotp_mid_hkd = total_mid / shares / hkd_rate
@@ -197,8 +192,8 @@ class AlibabaSOTP:
         upside_max = (sotp_max_hkd / current_price - 1) * 100
         upside_mid = (sotp_mid_hkd / current_price - 1) * 100
 
-        # FCF projections (亿元)
-        fcf_projections = [700, 780, 870, 970, 1080]  # FY2026E~FY2030E (亿元CNY)
+        # FCF projections (亿元) — FY2026实际-466亿，恢复期预测
+        fcf_projections = [-466, 150, 400, 600, 800]  # FY2026~FY2030E
 
         return {
             '分部列表': divisions_result,
@@ -213,6 +208,15 @@ class AlibabaSOTP:
             'shares': shares,
             'net_debt': 0,
             'fcf_projections': fcf_projections,
+            # FY2026关键数据
+            'fy2026': {
+                'revenue': 10237,
+                'non_gaap_net_profit': 607,
+                'fcf': -466,
+                'cloud_revenue': 1471,
+                'cloud_growth': 0.18,
+                'cloud_q4_growth': 0.38,
+            }
         }
 
 
@@ -223,7 +227,7 @@ def run_dcf(
     beta: float = 0.9,
     tg: float = 0.04,
     fcf_proj: Optional[List[float]] = None,
-    shares: float = 191.9,  # 亿H股 (akshare)
+    shares: float = 191.9,  # 亿H股
     net_debt: float = 0.0,
 ) -> Dict[str, Any]:
     """运行DCF估值"""
@@ -234,7 +238,7 @@ def run_dcf(
 
     # FCF projections
     if fcf_proj is None:
-        fcf_proj = [620, 680, 750, 830, 920]
+        fcf_proj = [-466, 150, 400, 600, 800]  # FY2026E~FY2030E
 
     # Terminal FCF
     terminal_fcf = fcf_proj[-1]
@@ -293,7 +297,7 @@ def run_valuation(
     manual_data = load_manual_data()
 
     if current_price is None:
-        current_price = manual_data.get('market', {}).get('current_price', 95.0)
+        current_price = manual_data.get('market', {}).get('current_price', 143.1)
 
     # SOTP
     sotp = AlibabaSOTP()
@@ -311,13 +315,16 @@ def run_valuation(
     # Probability weighted
     events_config = config.get('events', [])
     if events_config:
-        # Use SOTP mid value (in CNY) as base
         hkd_rate = 0.92
-        sotp_mid_cny = sotp_result['目标价_中枢_元'] * hkd_rate
-        sotp_total_mid_cny = sotp_mid_cny * sotp_result['shares']
-
-        weighted_cny = apply_events(sotp_total_mid_cny, events_config)
-        weighted_price_hkd = weighted_cny / sotp_result['shares'] / hkd_rate
+        sotp_total_cny = sotp_result['总市值_亿_中枢']
+        return_factor = 1.0
+        for ev in events_config:
+            if ev['impact'] == 'positive':
+                return_factor += ev['probability'] * (ev['magnitude'] - 1)
+            else:
+                return_factor -= ev['probability'] * (1 - ev['magnitude'])
+        weighted_total = sotp_total_cny * return_factor
+        weighted_price_hkd = weighted_total / sotp_result['shares'] / hkd_rate
         sotp_result['加权目标价_元'] = weighted_price_hkd
     else:
         sotp_result['加权目标价_元'] = sotp_result['目标价_中枢_元']
@@ -328,9 +335,9 @@ def run_valuation(
 # ========== CLI ==========
 
 if __name__ == '__main__':
-    print("=== 阿里巴巴(09988) 估值模型 v1.0 ===\n")
+    print("=== 阿里巴巴(09988) 估值模型 v2.0 (FY2026财报更新) ===\n")
 
-    sotp_r, dcf_r = run_valuation()
+    sotp_r, dcf_r = run_valuation(current_price=143.1)
 
     print(f"📊 SOTP分部估值:")
     for div in sotp_r['分部列表']:
