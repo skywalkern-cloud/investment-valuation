@@ -100,6 +100,15 @@ STOCK_REGISTRY = {
         "shares": 1.69,
         "config_path": "stocks/688608_hengxuan/config.yaml",
     },
+    "688018": {
+        "name": "乐鑫科技",
+        "code": "688018",
+        "market": "SH",
+        "currency": "CNY",
+        "symbol_tencent": "sh688018",
+        "shares": 1.68,
+        "config_path": "stocks/688018_lexin/config.yaml",
+    },
     "002270": {
         "name": "华明装备",
         "code": "002270",
@@ -221,6 +230,22 @@ def get_price_688608() -> float:
     return 170.70  # fallback
 
 
+def get_price_688018() -> float:
+    """获取乐鑫科技A股实时股价（CNY）"""
+    try:
+        import requests
+        resp = requests.get('https://qt.gtimg.cn/q=sh688018', timeout=10)
+        resp.encoding = 'gbk'
+        for line in resp.text.split('\n'):
+            if 'sh688018' in line:
+                parts = line.split('~')
+                price = float(parts[3]) if parts[3] else None
+                return price if price and price > 0 else 182.00
+    except Exception as e:
+        print(f"⚠️ 腾讯行情SH688018失败: {e}")
+    return 182.00  # fallback
+
+
 def get_price_002270() -> float:
     """获取华明装备A股实时股价（腾讯行情API）"""
     try:
@@ -247,6 +272,8 @@ def get_current_price(stock_code: str) -> float:
         return get_price_06613()
     elif stock_code == "688608":
         return get_price_688608()
+    elif stock_code == "688018":
+        return get_price_688018()
     elif stock_code == "002270":
         return get_price_002270()
     return 0.0
@@ -700,7 +727,93 @@ def run_hengxuan_valuation(
         return {"sotp_price": 0, "dcf_price": 0, "current_price": current_price, "fcf_proj": [0, 0, 0, 0, 0]}
 
 
-# ========== 华明装备估值 ==========
+# ========== 乐鑫科技估值 ==========
+def run_lexin_valuation(
+    rf: float, beta: float, tg: float, current_price: float,
+    cost_of_debt: float = 0.04, tax_rate: float = 0.15, debt_ratio: float = 0.2
+) -> Dict[str, Any]:
+    """乐鑫科技(688018)估值计算"""
+    import warnings
+    import yaml
+    from pathlib import Path
+    warnings.filterwarnings('ignore')
+
+    repo_root = Path(__file__).parent.parent.parent
+    import sys
+    if 'model' in sys.modules:
+        del sys.modules['model']
+    if 'lexin_model' in sys.modules:
+        del sys.modules['lexin_model']
+    sys.path.insert(0, str(repo_root))
+    sys.path.insert(0, str(repo_root / 'stocks' / '688018_lexin'))
+    sys.path.insert(0, str(repo_root / 'common'))
+
+    try:
+        import importlib.machinery
+        model_path = repo_root / 'stocks' / '688018_lexin' / 'model.py'
+        loader = importlib.machinery.SourceFileLoader('lexin_model', str(model_path))
+        lexin_module = loader.load_module()
+        LexinSOTP = lexin_module.LexinSOTP
+
+        from common.core.discounting_engine import DiscountingEngine
+        from common.core.probability_weight import ProbabilityWeightEngine
+
+        sotp = LexinSOTP.from_config()
+        sotp_result = sotp.calculate(current_price)
+
+        config_path = repo_root / 'stocks/688018_lexin/config.yaml'
+        with open(config_path, 'r', encoding='utf-8') as f:
+            config = yaml.safe_load(f)
+
+        # DCF计算
+        total_nm = sotp_result.get('total_net_profit', 0)
+        shares = 1.68
+        wacc = rf + beta * 0.045  # 科创板物联网芯片WACC
+        growth_rates = [0.30, 0.28, 0.25, 0.22, 0.20]
+        fcf_conv = 0.60
+        fcf_proj = [round(total_nm * (1 + g) * fcf_conv, 2) for g in growth_rates]
+
+        engine = DiscountingEngine()
+        dcf_result = engine.compute_dcf(
+            fcf_projections=fcf_proj,
+            terminal_fcf=fcf_proj[-1] * 1.03,
+            wacc=wacc,
+            net_debt=-10.0,  # 净现金约10亿
+            shares=shares,
+            terminal_growth=tg,
+        )
+        dcf_price = dcf_result['目标价_元']
+
+        # 概率加权
+        sotp_cap_base = sotp_result.get('sotp_cap_base', 0)
+        events = config.get('events', [])
+        weighted_price = None
+        if events:
+            pw = ProbabilityWeightEngine.from_config_list(events)
+            weighted_cap = pw.apply(sotp_cap_base)
+            weighted_price = weighted_cap / shares
+
+        return {
+            "sotp_price": sotp_result.get('target_base', 0),
+            "sotp_min": sotp_result.get('target_min', None),
+            "sotp_max": sotp_result.get('target_max', None),
+            "dcf_price": dcf_price,
+            "weighted_price": weighted_price,
+            "current_price": current_price,
+            "sotp_detail": sotp_result,
+            "total_net_profit": total_nm,
+            "fcf_proj": fcf_proj,
+            "wacc": wacc,
+            "wacc_pct": wacc * 100,
+            "sotp_cap_base": sotp_cap_base,
+        }
+    except Exception as e:
+        import traceback
+        st.error(f"⚠️ 乐鑫科技估值计算失败: {str(e)[:200]}")
+        return {"sotp_price": 0, "dcf_price": 0, "current_price": current_price, "fcf_proj": [0, 0, 0, 0, 0]}
+
+
+# ========== 华明���备估值 ==========
 def run_huaming_valuation(
     rf: float, beta: float, tg: float, current_price: float,
     cost_of_debt: float = 0.045, tax_rate: float = 0.15, debt_ratio: float = 0.2
@@ -1040,6 +1153,7 @@ def main():
             "09988": "🇭🇰 阿里巴巴 (09988)",
             "06613": "🇭🇰 蓝思科技 (06613)",
             "688608": "🇨🇳 恒玄科技 (688608)",
+            "688018": "🇨🇳 乐鑫科技 (688018)",
             "002270": "🇨🇳 华明装备 (002270)",
         }
         selected = st.selectbox(
@@ -1156,6 +1270,16 @@ def main():
         sotp_min = val.get("sotp_min", None)
         sotp_max = val.get("sotp_max", None)
         df_history = pd.DataFrame()  # 恒玄暂无历史数据
+    elif selected == "688018":
+        val = run_lexin_valuation(
+            rf=rf_val, beta=beta, tg=tg, current_price=current_price
+        )
+        sotp_price = val.get("sotp_price", val.get("target_base", 0))
+        dcf_price = val.get("dcf_price", 0)
+        weighted_price = val.get("weighted_price", None)
+        sotp_min = val.get("sotp_min", None)
+        sotp_max = val.get("sotp_max", None)
+        df_history = pd.DataFrame()  # 乐鑫暂无历史数据
     elif selected == "002270":
         val = run_huaming_valuation(
             rf=rf_val, beta=beta, tg=tg, current_price=current_price
@@ -1316,6 +1440,40 @@ def main():
             | 上涨空间 | {_up_608:+.1f}% |
             | DCF目标价 | {(val.get('dcf_price') or 0):.2f}元 |
             | 概率加权 | {(val.get('weighted_price') or 0):.2f}元 |
+            """)
+
+    # 688018: SOTP分部分说明
+    if selected == "688018":
+        sotp_detail = val.get('sotp_detail', {})
+        segments = sotp_detail.get('segments', [])
+        if segments:
+            st.markdown("---")
+            st.markdown('<p class="section-header">📊 SOTP分部分说明（乐鑫科技688018）</p>', unsafe_allow_html=True)
+            for seg in segments:
+                st.markdown(f"""
+                **{seg['name']}**
+                | 参数 | 值 |
+                |---|---|
+                | 收入(CNY) | **{seg.get('revenue_cny', 0):.1f}亿元** |
+                | 净利率 | {seg.get('net_margin', 0) * 100:.1f}% |
+                | 净利润(CNY) | **{seg.get('net_profit_cny', 0):.2f}亿元** |
+                | PE区间 | {seg['pe_range']} (中枢{seg['pe_base']}x) |
+                | 市值(CNY) | **{seg.get('cap_base', 0):.1f}亿元** ({seg['pct']}) |
+                """)
+            # SOTP合计
+            _sotp_018 = val.get("sotp_price", 0)
+            _cur_018 = val.get("current_price", 0)
+            _up_018 = ((_sotp_018 / max(_cur_018, 1)) - 1) * 100 if _cur_018 > 0 else -100
+            total_nm_018 = sotp_detail.get('total_net_profit', 0)
+            st.markdown(f"""
+            **【SOTP合计】**
+            | 指标 | 值 |
+            |---|---|
+            | 总净利润(CNY) | **{total_nm_018:.2f}亿元** |
+            | SOTP总市值(CNY) | **{val.get('sotp_cap_base', 0):.1f}亿元** |
+            | 当前价(CNY) | {_cur_018:.2f} |
+            | 上涨空间 | {_up_018:+.1f}% |
+            | DCF目标价 | {val.get('dcf_price', 0):.2f}元 |
             """)
 
     # 002270: SOTP分部分说明 + DCF说明 + 概率加权说明
