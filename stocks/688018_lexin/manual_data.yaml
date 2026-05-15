@@ -1,0 +1,89 @@
+# 乐鑫科技(688018) 手动财务数据
+# 数据来源: akshare东方财富API (2026-05-15更新)
+# 原始数据: stock_financial_report_sina(stock='sh688018', symbol='利润表/资产负债表/现金流量表')
+
+market:
+  current_price: 182.00   # 当前价（2026-05-15，腾讯行情）
+  last_updated: "2026-05-15"
+
+base_year: "2025"
+
+income_statement:
+  2025:
+    report_date: "20251231"
+    revenue: 25.65       # 营业收入（亿元）
+    net_profit: 4.98     # 归母净利润（亿元）
+    eps: 3.152          # 基本每股收益（元）
+    rd_expense: 6.03    # 研发费用（亿元）
+    rd_ratio: 0.235     # 研发占比 23.5%
+    net_margin: 0.194   # 净利率 19.4%
+  2024:
+    report_date: "20241231"
+    revenue: 20.07       # 营业收入（亿元）
+    net_profit: 3.39     # 归母净利润（亿元）
+    eps: 2.206          # 基本每股收益（元）
+    rd_expense: 4.90    # 研发费用（亿元）
+    rd_ratio: 0.244     # 研发占比 24.4%
+    net_margin: 0.169   # 净利率 16.9%
+  2023:
+    report_date: "20231231"
+    revenue: 14.33
+    net_profit: 1.36
+    eps: 1.215
+    rd_expense: 4.04
+    rd_ratio: 0.282
+    net_margin: 0.095
+
+balance_sheet:
+  2025:
+    total_assets: 50.48   # 总资产（亿元）
+    total_liabilities: 5.58  # 总负债（亿元）
+    equity: 44.90        # 净资产（亿元）
+    cash: 10.25         # 货币资金（亿元）
+    net_debt: -4.67     # 净现金（亿元）
+    current_ratio: 6.45 # 流动比率
+    quick_ratio: 6.45   # 速动比率
+  2024:
+    total_assets: 40.50
+    total_liabilities: 4.30
+    equity: 36.20
+    cash: 8.20
+    net_debt: -3.90
+
+cash_flow:
+  2025:
+    operating_cfo: 5.23   # 经营活动现金流（亿元）
+    capex: 0.00          # 资本支出（亿元）
+    fcf: 5.23            # 自由现金流（亿元）
+    fcf_to_netprofit: 1.05  # FCF/净利润比率
+  2024:
+    operating_cfo: 4.50
+    capex: 0.00
+    fcf: 4.50
+    fcf_to_netprofit: 1.33
+
+key_metrics:
+  shares: 1.67          # 总股本（亿股）
+  pe_ttm: 57.7          # PE TTM（基于182元/3.152元）
+  market_cap: 304.34    # 总市值（亿元）
+  roe: 11.1             # 净资产收益率 2025
+  roa: 9.9              # 资产收益率 2025
+  gross_margin: 41.5    # 毛利率 2025（三项费用占比调整后）
+
+# 分部数据（估算，基于公开信息+研报）
+segments:
+  wifi_mcu:
+    revenue_2025: 19.0  # 亿元
+    net_margin: 0.20
+    net_profit: 3.80
+    notes: "WiFi MCU主业，约占整体75%"
+  combo:
+    revenue_2025: 5.5
+    net_margin: 0.18
+    net_profit: 0.99
+    notes: "Combo芯片，AI眼镜/AR新增长"
+  ble:
+    revenue_2025: 1.5
+    net_margin: 0.22
+    net_profit: 0.33
+    notes: "BLE/Thread，Matter协议早期"
