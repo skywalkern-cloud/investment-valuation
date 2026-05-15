@@ -793,6 +793,13 @@ def run_lexin_valuation(
             weighted_cap = pw.apply(sotp_cap_base)
             weighted_price = weighted_cap / shares
 
+        # 概率加权详情（用于UI展示）
+        pw_detail = None
+        if events:
+            pw = ProbabilityWeightEngine.from_config_list(events)
+            sotp_cap_base_val = sotp_result.get('sotp_cap_base', 0)
+            pw_detail = pw.breakdown(sotp_cap_base_val)
+
         return {
             "sotp_price": sotp_result.get('target_base', 0),
             "sotp_min": sotp_result.get('target_min', None),
@@ -806,6 +813,7 @@ def run_lexin_valuation(
             "wacc": wacc,
             "wacc_pct": wacc * 100,
             "sotp_cap_base": sotp_cap_base,
+            "pw_detail": pw_detail,  # 概率加权详情（含breakdown）
         }
     except Exception as e:
         import traceback
@@ -1475,6 +1483,42 @@ def main():
             | 上涨空间 | {_up_018:+.1f}% |
             | DCF目标价 | {val.get('dcf_price', 0):.2f}元 |
             """)
+
+        # 概率加权详情展示
+        pw_detail = val.get('pw_detail')
+        if pw_detail and pw_detail.get('events'):
+            st.markdown("<hr style='margin: 8px 0'>", unsafe_allow_html=True)
+            st.markdown('<p class="section-header">📊 概率加权估值计算过程</p>', unsafe_allow_html=True)
+
+            sotp_base = pw_detail.get('base_value', 0)
+            sotp_adj = pw_detail.get('adjusted_value', 0)
+            multiplier = pw_detail.get('total_multiplier', 1.0)
+
+            st.markdown(f"""
+            | 指标 | 值 |
+            |---|---|
+            | SOTP基准市值 | **{sotp_base:.1f}亿元** |
+            | 综合乘数 | **{multiplier:.3f}x** |
+            | 概率加权市值 | **{sotp_adj:.1f}亿元** |
+            | 概率加权目标价 | **{val.get('weighted_price', 0):.1f}元** |
+            """)
+
+            st.markdown("**【事件拆解】**")
+            events_data = []
+            for ev in pw_detail.get('events', []):
+                direction = "↑" if ev['impact'] == 'positive' else "↓"
+                contrib_pct = ev['contribution'] * 100
+                events_data.append({
+                    '事件': ev['name'],
+                    '概率': f"{ev['probability']*100:.0f}%",
+                    '影响幅度': f"{direction}{abs(ev['magnitude']-1)*100:.0f}%",
+                    '贡献': f"{contrib_pct:+.2f}%",
+                    '说明': ev.get('description', '')
+                })
+            df_events = pd.DataFrame(events_data)
+            st.dataframe(df_events, use_container_width=True)
+
+            st.caption(f"📝 计算公式: 加权市值 = {sotp_base:.1f}亿 × (1 + Σ贡献) = {sotp_adj:.1f}亿 → 目标价 {val.get('weighted_price', 0):.1f}元")
 
     # 002270: SOTP分部分说明 + DCF说明 + 概率加权说明
     if selected == "002270":
