@@ -78,6 +78,16 @@ STOCK_REGISTRY = {
         "manual_path": "stocks/09988_alibaba/manual_data.yaml",
         "model_path": "stocks/09988_alibaba/model.py",
     },
+    "00700": {
+        "name": "腾讯控股",
+        "code": "00700",
+        "market": "HK",
+        "currency": "HKD",
+        "currency_symbol": "HK$",
+        "symbol_tencent": "hk00700",
+        "shares": 93.7,  # 亿股
+        "config_path": "stocks/HK00700_tencent/config.yaml",
+    },
     "06613": {
         "name": "蓝思科技",
         "code": "06613",
@@ -197,6 +207,23 @@ def get_price_09988() -> float:
     return manual.get("market", {}).get("current_price", 131.8)
 
 
+@st.cache_data(ttl=60)
+def get_price_00700() -> float:
+    """获取腾讯控股港股实时股价（腾讯行情API）"""
+    try:
+        import requests
+        resp = requests.get('https://qt.gtimg.cn/q=hk00700', timeout=10)
+        resp.encoding = 'gbk'
+        for line in resp.text.split('\n'):
+            if 'hk00700' in line:
+                parts = line.split('~')
+                price = float(parts[3]) if parts[3] else None
+                return price if price and price > 0 else 459.80
+    except Exception as e:
+        print(f"⚠️ 腾讯行情HK00700失败: {e}")
+    return 459.80  # fallback
+
+
 @st.cache_data(ttl=300)
 def get_price_06613() -> float:
     """获取蓝思科技港股实时股价（HKD）"""
@@ -268,6 +295,8 @@ def get_current_price(stock_code: str) -> float:
         return get_price_002428()
     elif stock_code == "09988":
         return get_price_09988()
+    elif stock_code == "00700":
+        return get_price_00700()
     elif stock_code == "06613":
         return get_price_06613()
     elif stock_code == "688608":
@@ -644,6 +673,98 @@ def run_lens_valuation(
     except Exception as e:
         import traceback
         st.error(f"⚠️ 蓝思科技估值计算失败: {str(e)[:200]}")
+        return {"sotp_price": 0, "dcf_price": 0, "current_price": current_price, "fcf_proj": [0, 0, 0, 0, 0]}
+
+
+
+def run_tencent_valuation(
+    rf: float, beta: float, tg: float, current_price: float,
+    hkd_cny_rate: float = 0.92,
+    cost_of_debt: float = 0.04, tax_rate: float = 0.15, debt_ratio: float = 0.2
+) -> Dict[str, Any]:
+    """腾讯控股(00700)估值计算"""
+    import warnings
+    import yaml
+    from pathlib import Path
+    warnings.filterwarnings('ignore')
+
+    repo_root = Path(__file__).parent.parent.parent
+    import sys
+    if 'model' in sys.modules:
+        del sys.modules['model']
+    if 'tencent_model' in sys.modules:
+        del sys.modules['tencent_model']
+    sys.path.insert(0, str(repo_root))
+    sys.path.insert(0, str(repo_root / 'stocks' / 'HK00700_tencent'))
+    sys.path.insert(0, str(repo_root / 'common'))
+
+    try:
+        import importlib.machinery
+        model_path = repo_root / 'stocks' / 'HK00700_tencent' / 'model.py'
+        loader = importlib.machinery.SourceFileLoader('tencent_model', str(model_path))
+        tencent_module = loader.load_module()
+        TencentSOTP = tencent_module.TencentSOTP
+
+        from common.core.discounting_engine import DiscountingEngine
+        from common.core.probability_weight import ProbabilityWeightEngine
+
+        sotp = TencentSOTP.from_config()
+        sotp_result = sotp.calculate(current_price)
+
+        config_path = repo_root / 'stocks/HK00700_tencent/config.yaml'
+        with open(config_path, 'r', encoding='utf-8') as f:
+            config = yaml.safe_load(f)
+
+        # DCF计算（用CNY）
+        total_nm = sotp_result.get('total_net_profit_cny', 0)
+        shares = 93.7
+        wacc = rf + beta * 0.05  # 港股科技龙头WACC
+        growth_rates = [0.12, 0.11, 0.10, 0.09, 0.08]
+        fcf_conv = 0.70
+        fcf_proj = [round(total_nm * (1 + g) * fcf_conv, 2) for g in growth_rates]
+
+        engine = DiscountingEngine()
+        dcf_result_cny = engine.compute_dcf(
+            fcf_projections=fcf_proj,
+            terminal_fcf=fcf_proj[-1] * 1.04,
+            wacc=wacc,
+            net_debt=-3000,  # 净现金约3000亿CNY
+            shares=shares,
+            terminal_growth=tg,
+        )
+        dcf_price_hkd = dcf_result_cny['目标价_元'] / hkd_cny_rate
+
+        # 概率加权
+        sotp_cap_hkd = sotp_result.get('sotp_cap_base_hkd', 0)
+        sotp_cap_cny = sotp_result.get('sotp_cap_base_cny', 0)
+        events = config.get('events', [])
+        weighted_price_hkd = None
+        pw_detail = None
+        if events:
+            pw = ProbabilityWeightEngine.from_config_list(events)
+            weighted_cap_hkd = pw.apply(sotp_cap_hkd)
+            weighted_price_hkd = weighted_cap_hkd / shares
+            pw_detail = pw.breakdown(sotp_cap_hkd)
+
+        return {
+            "sotp_price": sotp_result.get('target_base_hkd', 0),
+            "sotp_min": sotp_result.get('target_min_hkd', None),
+            "sotp_max": sotp_result.get('target_max_hkd', None),
+            "dcf_price": dcf_price_hkd,
+            "weighted_price": weighted_price_hkd,
+            "current_price": current_price,
+            "sotp_detail": sotp_result,
+            "total_net_profit": total_nm,
+            "fcf_proj": fcf_proj,
+            "wacc": wacc,
+            "wacc_pct": wacc * 100,
+            "sotp_cap_base": sotp_cap_hkd,
+            "hkd_cny_rate": hkd_cny_rate,
+            "pw_detail": pw_detail,
+        }
+    except Exception as e:
+        import traceback
+        st.error(f"⚠️ 腾讯控股估值计算失败: {str(e)[:200]}")
         return {"sotp_price": 0, "dcf_price": 0, "current_price": current_price, "fcf_proj": [0, 0, 0, 0, 0]}
 
 
@@ -1159,6 +1280,7 @@ def main():
         stock_options = {
             "002428": "🇨🇳 云南锗业 (002428)",
             "09988": "🇭🇰 阿里巴巴 (09988)",
+            "00700": "🇭🇰 腾讯控股 (00700)",
             "06613": "🇭🇰 蓝思科技 (06613)",
             "688608": "🇨🇳 恒玄科技 (688608)",
             "688018": "🇨🇳 乐鑫科技 (688018)",
@@ -1298,6 +1420,17 @@ def main():
         sotp_min = val.get("sotp_min", None)
         sotp_max = val.get("sotp_max", None)
         df_history = pd.DataFrame()  # 华明暂无历史数据
+    elif selected == "00700":
+        val = run_tencent_valuation(
+            rf=rf_val, beta=beta, tg=tg, current_price=current_price,
+            hkd_cny_rate=0.92
+        )
+        sotp_price = val.get("sotp_price", val.get("target_base_hkd", 0))
+        dcf_price = val.get("dcf_price", 0)
+        weighted_price = val.get("weighted_price", None)
+        sotp_min = val.get("sotp_min", None)
+        sotp_max = val.get("sotp_max", None)
+        df_history = pd.DataFrame()  # 腾讯暂无历史数据
     else:
         val = run_alibaba_valuation(
             rf=rf_val, beta=beta, tg=tg, current_price=current_price,
@@ -1519,6 +1652,83 @@ def main():
             st.dataframe(df_events, use_container_width=True)
 
             st.caption(f"📝 计算公式: 加权市值 = {sotp_base:.1f}亿 × (1 + Σ贡献) = {sotp_adj:.1f}亿 → 目标价 {val.get('weighted_price', 0):.1f}元")
+
+    # 00700: SOTP分部分说明 + 概率加权说明
+    if selected == "00700":
+        sotp_detail = val.get('sotp_detail', {})
+        segments = sotp_detail.get('segments', [])
+        sotp_base_hkd = val.get('sotp_cap_base', 0)
+        sotp_price_val = val.get('sotp_price', 0)
+        cur_p = val.get('current_price', 0)
+        dcf_p = val.get('dcf_price', 0)
+        weighted_p = val.get('weighted_price', 0)
+        wacc_pct = val.get('wacc_pct', 0)
+        fcf_proj = val.get('fcf_proj', [])
+        hkd_cny_rate = val.get('hkd_cny_rate', 0.92)
+
+        if segments:
+            st.markdown("---")
+            st.markdown('<p class="section-header">📊 SOTP分部分说明（腾讯控股00700）</p>', unsafe_allow_html=True)
+            for seg in segments:
+                st.markdown(f"""
+                **{seg['name']}**
+                | 参数 | 值 |
+                |---|---|
+                | 净利润(CNY) | **{seg.get('net_profit_cny', 0):.0f}亿元** |
+                | PE区间 | {seg['pe_range']} (中枢{seg['pe_base']}x) |
+                | 市值(CNY) | **{seg.get('cap_base', 0):.0f}亿元** ({seg['pct']}) |
+                """)
+            # SOTP合计
+            _sotp_700 = (val.get("sotp_price") or 0)
+            _cur_700 = (val.get("current_price") or 0)
+            _up_700 = ((_sotp_700 / max(_cur_700, 1)) - 1) * 100 if _cur_700 > 0 else -100
+            total_nm_700 = sotp_detail.get('total_net_profit_cny', 0)
+            st.markdown(f"""
+            **【SOTP合计】**
+            | 指标 | 值 |
+            |---|---|
+            | 总净利润(CNY) | **{total_nm_700:.0f}亿元** |
+            | SOTP总市值(HKD) | **{sotp_base_hkd:.0f}亿港元** |
+            | 当前价(HKD) | {(_cur_700 or 0):.2f}港元 |
+            | 上涨空间 | {_up_700:+.1f}% |
+            | DCF目标价 | {(val.get('dcf_price') or 0):.2f}港元 |
+            """)
+
+        # 概率加权详情展示
+        pw_detail = val.get('pw_detail')
+        if pw_detail and pw_detail.get('events'):
+            st.markdown("<hr style='margin: 8px 0'>", unsafe_allow_html=True)
+            st.markdown('<p class="section-header">📊 概率加权估值计算过程</p>', unsafe_allow_html=True)
+
+            sotp_base = pw_detail.get('base_value', 0)
+            sotp_adj = pw_detail.get('adjusted_value', 0)
+            multiplier = pw_detail.get('total_multiplier', 1.0)
+
+            st.markdown(f"""
+            | 指标 | 值 |
+            |---|---|
+            | SOTP基准市值 | **{sotp_base:.0f}亿港元** |
+            | 综合乘数 | **{multiplier:.3f}x** |
+            | 概率加权市值 | **{sotp_adj:.0f}亿港元** |
+            | 概率加权目标价 | **{val.get('weighted_price', 0):.1f}港元** |
+            """)
+
+            st.markdown("**【事件拆解】**")
+            events_data = []
+            for ev in pw_detail.get('events', []):
+                direction = "↑" if ev['impact'] == 'positive' else "↓"
+                contrib_pct = ev['contribution'] * 100
+                events_data.append({
+                    '事件': ev['name'],
+                    '概率': f"{ev['probability']*100:.0f}%",
+                    '影响幅度': f"{direction}{abs(ev['magnitude']-1)*100:.0f}%",
+                    '贡献': f"{contrib_pct:+.2f}%",
+                    '说明': ev.get('description', '')
+                })
+            df_events = pd.DataFrame(events_data)
+            st.dataframe(df_events, use_container_width=True)
+
+            st.caption(f"📝 计算公式: 加权市值 = {sotp_base:.0f}亿港元 × (1 + Σ贡献) = {sotp_adj:.0f}亿港元 → 目标价 {val.get('weighted_price', 0):.1f}港元")
 
     # 002270: SOTP分部分说明 + DCF说明 + 概率加权说明
     if selected == "002270":
