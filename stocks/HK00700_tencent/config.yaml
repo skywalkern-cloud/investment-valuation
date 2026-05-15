@@ -1,0 +1,156 @@
+# 腾讯控股(00700) SOTP估值模型 - 配置文件
+# 港股科技龙头，港元HKD计价
+# 最后一更新: 2026-05-15
+#
+# 数据来源:
+#   - 实时股价: 腾讯行情 API (hk00700)
+#   - 历史财务: 公司年报/港交所披露
+#   - 2024年报: https://www.hkexnews.hk (搜索: 00700 年报)
+#   - 机构预测: 雪球/彭博综合
+
+stock_info:
+  name: 腾讯控股
+  code: "00700"
+  market: 港股 (HK)
+  currency: HKD
+  exchange: HK
+  symbol_tencent: "hk00700"
+  total_shares: 93.7   # 亿股 (总股本)
+  float_shares: 92.5   # 亿股 (流通股本)
+  hkd_cny_rate: 0.92  # HKD/CNY 汇率
+
+# 业务分部配置（SOTP）
+# 腾讯是综合型互联网平台，按业务分部估值
+segments:
+  # 微信/社交广告（微信/WeChat/朋友圈/小程序广告）
+  # 2025E约3200亿人民币，占总收入45%
+  - name: "微信与社交广告"
+    code: wechat_ads
+    revenue_cny: 3200     # 2026E营收（亿元）
+    net_margin: 0.38      # 净利率38%（高毛利率）
+    net_profit_cny: 1216   # 3200×38% = 1216亿
+    pe_min: 25
+    pe_max: 35
+    pe_base: 30
+    notes: "微信12亿用户，小程序生态，广告收入持续增长"
+
+  # 游戏（手游+端游，海外游戏）
+  - name: "游戏业务"
+    code: gaming
+    revenue_cny: 2000     # 2026E营收（亿元）
+    net_margin: 0.35       # 净利率35%
+    net_profit_cny: 700    # 2000×35% = 700亿
+    pe_min: 20
+    pe_max: 30
+    pe_base: 25
+    notes: "全球最大游戏公司，王者荣耀/和平精英/海外Supercell"
+
+  # 金融科技与企业服务（支付/云/ToB）
+  - name: "金融科技与企业服务"
+    code: fintech_cloud
+    revenue_cny: 1800     # 2026E营收（亿元）
+    net_margin: 0.25       # 净利率25%（云业务仍需投入）
+    net_profit_cny: 450    # 1800×25% = 450亿
+    pe_min: 20
+    pe_max: 30
+    pe_base: 25
+    notes: "微信支付/云服务/企业微信/腾讯会议，ToB转型核心"
+
+  # 投资组合（联营公司/公允价值变动）
+  - name: "投资组合"
+    code: investments
+    revenue_cny: 0         # 投资不产生直接收入，用残值法
+    net_profit_cny: 300     # 假设每年投资回报约300亿
+    pe_min: 15
+    pe_max: 22
+    pe_base: 18
+    notes: "京东/美团/拼多多/滴滴/快手等联营公司，账外价值巨大"
+    is_residual: true       # 残值法
+
+# 业绩基准（2024年报）
+# 2024年报: 营收约6600亿(+8% YoY), 净利约1950亿(+36% YoY)
+# 2023年报: 营收约6100亿(+10% YoY), 净利约1430亿
+base_year: "2024"
+base_revenue: 6600      # 2024年报营收（亿元）
+base_net_profit: 1950   # 2024年报Non-IFRS净利（亿元）
+shares: 93.7            # 总股本（亿股）
+
+# 成长预期（2026-2028）
+growth:
+  wechat_ads:
+    rev_growth: 0.15   # 社交广告增长15%（小程序生态扩张）
+    nm_improve: 0.02
+  gaming:
+    rev_growth: 0.08   # 游戏增长8%（海外游戏恢复）
+    nm_improve: 0.01
+  fintech_cloud:
+    rev_growth: 0.12   # ToB业务增长12%（云服务扭亏）
+    nm_improve: 0.03
+  investments:
+    rev_growth: 0.05   # 投资回报增长5%
+    nm_improve: 0.00
+
+# DCF参数
+dcf:
+  wacc_base: 0.09      # WACC 9%（港股科技龙头）
+  wacc_min: 0.08
+  wacc_max: 0.10
+  tg: 0.04            # 永续增长率4%（平台型企业）
+  net_debt: -3000     # 净现金约3000亿（现金大于负债）
+
+# 敏感性分析
+sensitivity_analysis:
+  sotp:
+    pe_wechat_range: [25, 35]
+    pe_gaming_range: [20, 30]
+    pe_fintech_range: [20, 30]
+    pe_invest_range: [15, 22]
+  dcf:
+    wacc_range: [0.08, 0.10]
+    tg_range: [0.03, 0.05]
+    terminal_multiple: [12, 20]
+
+# 事件驱动（概率加权）
+events:
+  - name: "AI大模型商业化落地"
+    probability: 0.60
+    magnitude: 1.15  # 上涨15%（混元大模型赋能广告/游戏/云）
+    impact: positive
+    description: "腾讯混元大模型在微信/游戏/企业微信中商业化，提升变现效率"
+
+  - name: "游戏版号恢复正常"
+    probability: 0.55
+    magnitude: 1.10  # 上涨10%（版号发放加快，新游戏上线）
+    impact: positive
+    description: "监管正常化，更多新游戏获得版号，游戏收入提速"
+
+  - name: "视频号电商变现加速"
+    probability: 0.50
+    magnitude: 1.12  # 上涨12%（视频号电商闭环）
+    impact: positive
+    description: "视频号电商GMV爆发，广告收入和电商佣金双增长"
+
+  # === 负向事件 ===
+  - name: "宏观经济/消费持续低迷"
+    probability: 0.35
+    magnitude: 0.88  # 下跌12%
+    impact: negative
+    description: "广告主预算削减，游戏消费下降"
+
+  - name: "监管政策收紧"
+    probability: 0.25
+    magnitude: 0.90  # 下跌10%
+    impact: negative
+    description: "互联网监管政策变化，影响游戏审批或金融业务"
+
+# 估值说明
+methodology_notes: |
+  - SOTP: 按业务分部估值，加权PE（中枢×净利润）
+  - DCF: 基于2024年净利×增长率预测作为DCF起点
+  - 概率加权: 不同情景下的SOTP市值加权平均
+  - 核心逻辑: 微信生态平台，游戏+广告+ToB三轮驱动
+
+display_preferences:
+  currency_symbol: "HK$"
+  price_precision: 2
+  show_probability_weighted: true
