@@ -1,0 +1,145 @@
+# 乐鑫科技(688018) SOTP估值模型 - 配置文件
+# 科创板物联网WiFi芯片龙头，A股（CNY）
+# 最后一更新: 2026-05-15
+#
+# 数据来源:
+#   - 实时股价: 腾讯行情 API (sh688018)
+#   - 历史财务: 雪球 https://xueqiu.com/S/SH688018
+#   - 分部营收: 东方财富 https://data.eastmoney.com/stockData/688018.html
+#   - 2024年报: 上交所 https://www.sse.com.cn (搜索: 688018 年度报告)
+#   - 机构预测: 雪球/东财研报综合
+
+stock_info:
+  name: 乐鑫科技
+  code: "688018"
+  market: A股 (科创板)
+  currency: CNY
+  exchange: SH
+  symbol_tencent: "sh688018"
+  total_shares: 1.68   # 亿股 (总股本)
+  float_shares: 1.47   # 亿股 (流通股本)
+  hkd_cny_rate: 0.92  # 不适用但保留
+
+# 业务分部配置（SOTP）
+# 乐鑫是纯Fabless，只做芯片设计和销售，不做封测
+# 收入=销量×单价，成本=晶圆+封测+测试
+segments:
+  # WiFi MCU芯片（智能家居/工业控制）
+  # 2024年约11亿营收，占比约80%，核心大本营
+  - name: "WiFi MCU主业"
+    code: wifi_mcu
+    revenue_cny: 11.5    # 2026E营收（亿元）
+    net_margin: 0.20     # 净利率20%（高端产品占比提升）
+    net_profit_cny: 2.30  # 11.5×20% = 2.30亿
+    pe_min: 40
+    pe_max: 60
+    pe_base: 50
+    notes: "WiFi6 MCU全球前三，智能家居/工业IoT绝对龙头"
+
+  # WiFi/蓝牙Combo芯片（手机配件/穿戴/AR）
+  - name: "WiFi/蓝牙Combo芯片"
+    code: combo
+    revenue_cny: 2.5     # 2026E营收（亿元）
+    net_margin: 0.18     # 净利率18%（仍在成长）
+    net_profit_cny: 0.45  # 2.5×18% = 0.45亿
+    pe_min: 45
+    pe_max: 65
+    pe_base: 55
+    notes: "Combo芯片进入可穿戴/AR眼镜，新增长点"
+
+  # BLE/Thread芯片（超低功耗IoT/智能家居Matter协议）
+  - name: "BLE/Thread芯片"
+    code: ble
+    revenue_cny: 0.5     # 2026E营收（亿元）
+    net_margin: 0.22     # 净利率22%（细分市场垄断）
+    net_profit_cny: 0.11  # 0.5×22% = 0.11亿
+    pe_min: 50
+    pe_max: 70
+    pe_base: 60
+    notes: "Thread/Matter协议，智能家居未来标准"
+
+# 业绩基准（2024年报）
+# 乐鑫科技2024年报：
+# 营收约13亿（+30% YoY），净利约1.7亿（+80% YoY）
+# 毛利率触底反弹（封测产能紧张缓解）
+base_year: "2024"
+base_revenue: 13.0     # 2024年报营收（亿元）
+base_net_profit: 1.70  # 2024年报归母净利润（亿元）
+shares: 1.68           # 总股本（亿股）
+
+# 成长预期（2026-2028）
+growth:
+  wifi_mcu:
+    rev_growth: 0.25   # WiFi MCU增长25%（智能家居渗透率提升）
+    nm_improve: 0.03   # 净利率提升3%（产品结构升级）
+  combo:
+    rev_growth: 0.40   # Combo增长40%（可穿戴/AR上量）
+    nm_improve: 0.02
+  ble:
+    rev_growth: 0.60   # BLE增长60%（Matter协议爆发）
+    nm_improve: 0.01
+
+# DCF参数（保守估算）
+dcf:
+  wacc_base: 0.085     # WACC 8.5%（科创板高成长）
+  wacc_min: 0.075
+  wacc_max: 0.095
+  tg: 0.03            # 永续增长率3%
+  net_debt: 10.0      # 净现金约10亿（资产负债表健康）
+
+# 敏感性分析
+sensitivity_analysis:
+  sotp:
+    pe_wifi_range: [40, 60]
+    pe_combo_range: [45, 65]
+    pe_ble_range: [50, 70]
+  dcf:
+    wacc_range: [0.075, 0.095]
+    tg_range: [0.02, 0.04]
+    terminal_multiple: [15, 25]
+
+# 事件驱动（概率加权）
+events:
+  - name: "智能家居/Matter协议爆发"
+    probability: 0.65
+    magnitude: 1.18  # 上涨18%（WiFi MCU主业直接受益）
+    impact: positive
+    description: "Matter协议统一智能家居标准，乐鑫作为全球WiFi MCU龙头直接受益"
+
+  - name: "AI眼镜/AR眼镜放量"
+    probability: 0.50
+    magnitude: 1.15  # 上涨15%（Combo芯片进入AI眼镜）
+    impact: positive
+    description: "Meta/Ray-Ban/苹果AI眼镜上量，Combo芯片（WiFi+BT）出货增加"
+
+  - name: "WiFi7芯片量产"
+    probability: 0.40
+    magnitude: 1.12  # 上涨12%
+    impact: positive
+    description: "WiFi7芯片在高端智能家居场景量产，单价提升"
+
+  # === 负向事件 ===
+  - name: "竞争加剧/价格战"
+    probability: 0.30
+    magnitude: 0.82  # 下跌18%
+    impact: negative
+    description: "高通/联发科/瑞昱进入WiFi MCU市场，价格战压缩净利率"
+
+  - name: "消费电子持续低迷"
+    probability: 0.25
+    magnitude: 0.88  # 下跌12%
+    impact: negative
+    description: "智能家居/消费电子需求低迷，主业净利率承压"
+
+# 估值说明
+methodology_notes: |
+  - SOTP: 按业务分部估值，加权PE（中枢×净利润）
+  - DCF: 基于2024年净利×增长率预测作为DCF起点
+  - 概率加权: 不同情景下的SOTP市值加权平均
+  - 核心逻辑: WiFi MCU全球前三，智能家居/Matter协议龙头
+  - 乐鑫是纯Fabless，资产轻，净利率对产品结构敏感
+
+display_preferences:
+  currency_symbol: "¥"
+  price_precision: 2
+  show_probability_weighted: true
