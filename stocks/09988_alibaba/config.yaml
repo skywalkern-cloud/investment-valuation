@@ -97,23 +97,47 @@ holdings:
     note: "包括分众传媒等联营公司"
 
 events:
-  - name: "云业务扭亏为盈"
-    probability: 0.80
+  - name: "阿里云AI商业化加速"
+    probability: 0.75
     impact: "positive"
-    magnitude: 1.15
-    description: "阿里云实现稳定盈利，利润率持续提升"
+    magnitude: 1.20
+    description: "AI收入占比30%+，连续11季度三位数增长，云利润率从9%恢复至15%+"
+    source: "FY2026年报：AI收入359亿，Q4云收入+38%"
 
-  - name: "AI驱动电商GMV增长"
+  - name: "A股/港股AI主题重估"
     probability: 0.70
     impact: "positive"
-    magnitude: 1.12
-    description: "AI推荐/广告提升货币化率"
+    magnitude: 1.10
+    description: "AI板块资金涌入带动估值中枢上移，叠加回购利好"
+    source: "BABA回购计划持续，FY2026回购超千亿"
 
-  - name: "宏观消费复苏不及预期"
-    probability: 0.40
+  - name: "核心商业利润回升"
+    probability: 0.65
+    impact: "positive"
+    magnitude: 1.12
+    description: "即时零售投入放缓，CMR同口径+8%证明平台护城河未破，EBITA利润率从6%恢复至15%+"
+    source: "FY2026年报：中国电商EBITA率从22%降至6%"
+
+  - name: "宏观消费持续疲软"
+    probability: 0.35
     impact: "negative"
     magnitude: 0.90
-    description: "消费疲软导致GMV增长放缓"
+    description: "中国消费复苏低于预期，GMV增速进一步放缓"
+    source: "社会消费品零售总额增速"
+
+  - name: "国际业务地缘风险"
+    probability: 0.25
+    impact: "negative"
+    magnitude: 0.92
+    description: "中美贸易摩擦升级影响国际电商业务"
+    source: "Lazada/Trendyol主要市场"
+
+  - name: "All Others亏损收窄"
+    probability: 0.60
+    impact: "positive"
+    magnitude: 1.05
+    description: "千问App获客成本下降，本地生活(闪购)减亏"
+    source: "FY2026 All Others亏损428亿"}]}
 
 # ============================================================
 # 端到端敏感性分析配置 (Phase 2 P1)
