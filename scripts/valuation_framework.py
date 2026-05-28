@@ -396,9 +396,9 @@ def main():
         records = read_bitable_records(config['bitable_app'], config['bitable_table'])
         for rec in records:
             fields = rec.get('fields', {})
-            if fields.get('半导体净利(亿)') or fields.get('传统净利(亿)'):
-                manual['semi_nm'] = float(fields.get('半导体净利(亿)', 0))
-                manual['trad_nm'] = float(fields.get('传统净利(亿)', 0))
+            if fields.get('半导体分部净利(亿元)') or fields.get('传统业务净利(亿元)'):
+                manual['semi_nm'] = float(fields.get('半导体分部净利(亿元)', 0))
+                manual['trad_nm'] = float(fields.get('传统业务净利(亿元)', 0))
                 print(f"    ✅ 找到已有财务数据: semi_nm={manual['semi_nm']} trad_nm={manual['trad_nm']}")
                 break
         else:
@@ -419,17 +419,9 @@ def main():
         # 日期
         bitable_fields['日期'] = int(datetime.now().timestamp() * 1000)  # 飞书date类型需毫秒时间戳
         
-        # 自动行情字段
+        # 自动行情字段（只写入表中存在的字段，其余数据放入备注）
         if spot:
             bitable_fields['股价(元)'] = spot['current_price']
-            bitable_fields['涨跌幅(%)'] = spot['change_pct']
-            bitable_fields['市盈率(PE)'] = spot['pe_ttm']
-            bitable_fields['市净率(PB)'] = spot['pb']
-            bitable_fields['52周最高'] = spot['high_52w']
-            bitable_fields['52周最低'] = spot['low_52w']
-            bitable_fields['成交量'] = spot['volume']
-            bitable_fields['换手率(%)'] = spot['turnover_rate']
-            bitable_fields['流通市值(亿)'] = spot['market_cap']
         
         # 商品价格
         if commodity:
@@ -438,23 +430,38 @@ def main():
             if commodity.get('germanium_price'):
                 bitable_fields['锗价(万元/吨)'] = commodity['germanium_price']
         
-        # SOTP估值
-        notes_parts = []
-        if spot:
-            notes_parts.append(f"{today_str} 股价{spot['current_price']}元({spot['change_pct']:+.2f}%) PE={spot['pe_ttm']:.0f}")
+        # SOTP估值 — 每个记录自包含完整参数和中间结果
         if valuation:
-            bitable_fields['SOTP目标价'] = valuation['target_price']
-            bitable_fields['SOTP下限'] = valuation['target_low']
-            bitable_fields['SOTP上限'] = valuation['target_high']
+            bitable_fields['半导体分部净利(亿元)'] = valuation['semi_nm']
+            bitable_fields['传统业务净利(亿元)'] = valuation['trad_nm']
+            bitable_fields['半导体PE(倍)'] = valuation['semi_pe']
+            bitable_fields['传统PE(倍)'] = valuation['trad_pe']
+            bitable_fields['半导体分部市值(亿)'] = valuation['semi_cap']
+            bitable_fields['传统业务市值(亿)'] = valuation['trad_cap']
+            bitable_fields['SOTP总市值(亿)'] = valuation['total_cap']
+            bitable_fields['目标股价(元)'] = valuation['target_price']
+            bitable_fields['SOTP目标价(元)'] = valuation['target_price']
+            bitable_fields['上涨空间(%)'] = round(valuation['upside_pct'], 1)
+            bitable_fields['估值状态'] = '🔴 严重高估' if valuation['upside_pct'] < -20 else '合理' if valuation['upside_pct'] < 20 else '低估'
+        
+        # 备注（自包含全部关键信息）
+        notes_parts = [today_str]
+        if spot:
+            notes_parts.append(f"股价{spot['current_price']}元")
+            notes_parts.append(f"涨跌{spot['change_pct']:+.2f}%")
+            notes_parts.append(f"PE={spot['pe_ttm']:.1f}")
+            notes_parts.append(f"PB={spot['pb']:.2f}")
+            notes_parts.append(f"52w高{spot.get('high_52w','?')}/低{spot.get('low_52w','?')}")
+            notes_parts.append(f"换手{spot.get('turnover_rate',0):.2f}%")
+            notes_parts.append(f"流通市值{spot.get('market_cap',0)}亿")
+        if valuation:
             up = valuation['upside_pct']
             sign = '+' if up >= 0 else ''
-            bitable_fields['潜在空间'] = f"{sign}{up:.0f}%"
             notes_parts.append(f"SOTP={valuation['target_price']}元({sign}{up:.0f}%)")
+            notes_parts.append(f"InP={valuation['semi_nm']}亿x{valuation['semi_pe']:.0f}PE={valuation['semi_cap']}亿")
+            notes_parts.append(f"锗矿={valuation['trad_nm']}亿x{valuation['trad_pe']:.0f}PE={valuation['trad_cap']}亿")
         
-        if notes_parts:
-            bitable_fields['备注'] = ' | '.join(notes_parts)
-        else:
-            bitable_fields['备注'] = f"{today_str} 数据采集"
+        bitable_fields['备注'] = ' | '.join(notes_parts)
         
         write_bitable_record(config['bitable_app'], config['bitable_table'], bitable_fields)
         
