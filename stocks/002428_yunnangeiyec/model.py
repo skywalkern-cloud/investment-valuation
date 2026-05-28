@@ -20,6 +20,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 import warnings
 warnings.filterwarnings('ignore')
 
+import json
 import yaml
 import argparse
 from datetime import datetime
@@ -110,6 +111,23 @@ class YunnangeiyecSOTP:
         self.trad_pe_min = trad_pe_min
         self.trad_pe_max = trad_pe_max
         
+        # ===== 从共享JSON加载最新估值参数 =====
+        # data/latest_valuation.json 由 valuation_framework.py (cron) 写入
+        # 如果存在，优先使用JSON中的数据，确保Streamlit与bitable一致
+        _json_path = os.path.join(os.path.dirname(__file__), '..', '..', 'data', 'latest_valuation.json')
+        try:
+            with open(_json_path) as _f:
+                _data = json.load(_f)
+            if _data.get('semi_nm') and _data.get('target_price'):
+                # JSON中有完整估值数据，用配置文件参数但保留框架计算的SOTP结果
+                self._json_data = _data
+                print(f"  📋 从latest_valuation.json加载估值: target={_data['target_price']}元")
+            else:
+                self._json_data = None
+        except (FileNotFoundError, json.JSONDecodeError, Exception):
+            self._json_data = None
+
+
     def calculate(self, current_price: float) -> dict:
         """计算SOTP估值"""
         # ===== 1. 半导体分部 (磷化铟InP) =====
@@ -148,7 +166,7 @@ class YunnangeiyecSOTP:
         upside_max = (target_max / current_price - 1) * 100
         upside_base = (target_base / current_price - 1) * 100
         
-        return {
+        result = {
             'current_price': current_price,
             # 半导体分部
             'semi_revenue': semi_revenue,
@@ -173,6 +191,25 @@ class YunnangeiyecSOTP:
             'upside_max': upside_max,
             'upside_base': upside_base,
         }
+        
+        # ===== 共享JSON覆盖（使Streamlit与bitable一致） =====
+        if getattr(self, '_json_data', None):
+            j = self._json_data
+            if j.get('target_price') and j.get('stock_price'):
+                jp = j.get('stock_price')
+                # 只当股价接近时（防止股价过期）
+                if abs(jp - current_price) / max(jp, current_price) < 0.1:
+                    result['target_base'] = j['target_price']
+                    result['target_min'] = j.get('target_low', j['target_price'])
+                    result['target_max'] = j.get('target_high', j['target_price'])
+                    result['upside_base'] = j.get('upside_pct', 0)
+                    result['semi_net_profit'] = j.get('semi_nm', semi_net_profit)
+                    result['trad_net_profit'] = j.get('trad_nm', trad_net_profit)
+                    result['sotp_cap_base'] = j.get('sotp_cap', sotp_cap_base)
+                    result['semi_cap_base'] = j.get('semi_cap', semi_cap_base)
+                    result['trad_cap_base'] = j.get('trad_cap', trad_cap_base)
+        
+        return result
     
     def explain(self, result: dict, current_price: float) -> list:
         """生成带解释的输出"""
