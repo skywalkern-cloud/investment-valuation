@@ -207,7 +207,7 @@ class YunnangeiyecSOTP:
                     result['trad_net_profit'] = j.get('trad_nm', trad_net_profit)
                     result['sotp_cap_base'] = j.get('sotp_cap', sotp_cap_base)
                     result['semi_cap_base'] = j.get('semi_cap', semi_cap_base)
-                    result['trad_cap_base'] = j.get('trad_cap', trad_cap_base)
+                    result['trad_cap_base'] = j.get('trad_cap', trad_net_profit * self.TRAD_PE_BASE)
         
         return result
     
