@@ -302,7 +302,34 @@ def get_stock_spot(code: str, market: str = 'SZ') -> Optional[Dict]:
                     'update_time': datetime.now().strftime('%Y-%m-%d %H:%M'),
                 }
         except Exception as e2:
-            print(f"  ⚠️ Eastmoney接口也失败: {e2}")
+            print(f"  ⚠️ Eastmoney接口也失败, 尝试腾讯行情...")
+            try:
+                import re as _re
+                resp = requests.get('https://qt.gtimg.cn/q=sz002428', timeout=10)
+                resp.encoding = 'gbk'
+                for line in resp.text.split('\n'):
+                    if 'sz002428' in line:
+                        parts = line.split('~')
+                        if len(parts) > 3:
+                            price = float(parts[3])
+                            if price > 0:
+                                print(f"    ✅ 腾讯行情: 股价={price}元")
+                                return {
+                                    'stock_code': code,
+                                    'stock_name': parts[1] if len(parts) > 1 else '',
+                                    'current_price': price,
+                                    'change_pct': float(parts[32]) if len(parts) > 32 else 0,
+                                    'pe_ttm': float(parts[39]) if len(parts) > 39 else 0,
+                                    'pb': float(parts[46]) if len(parts) > 46 else 0,
+                                    'high_52w': float(parts[44]) if len(parts) > 44 else 0,
+                                    'low_52w': float(parts[45]) if len(parts) > 45 else 0,
+                                    'volume': float(parts[6]) if len(parts) > 6 else 0,
+                                    'turnover_rate': float(parts[38]) if len(parts) > 38 else 0,
+                                    'market_cap': float(parts[44]) / 1e8 if len(parts) > 44 else 0,
+                                    'update_time': datetime.now().strftime('%Y-%m-%d %H:%M'),
+                                }
+            except Exception as e3:
+                print(f"  ⚠️ 腾讯行情也失败: {e3}")
     return None
 
 
@@ -403,6 +430,30 @@ def main():
                 break
         else:
             print("    ℹ️ 未找到手动财务数据，跳过SOTP")
+        
+        # 2.5 用采集的商品价格动态更新SOTP参数
+        if manual.get('semi_nm') and manual.get('trad_nm'):
+            if commodity:
+                # 锗价动态化: 30吨/年 × 锗价(万元/吨) ÷ 10000(万→亿) × 30%净利率
+                if commodity.get('germanium_price'):
+                    # 锗价单位: 万元/吨（已从SMM的元/kg转换）
+                    ge_revenue_bn = 30 * commodity['germanium_price'] / 10000  # 亿元
+                    ge_nm = round(ge_revenue_bn * 0.30, 2)
+                    if abs(ge_nm - manual['trad_nm']) > 0.01:
+                        print(f"    📊 锗价{commodity['germanium_price']}万元/吨 → 锗矿净利{manual['trad_nm']}→{ge_nm:.2f}亿（{ge_nm/manual['trad_nm']*100-100:+.1f}%）")
+                        manual['trad_nm'] = round(ge_nm, 2)
+                
+                # 铟价联动InP: 基准铟价4700元/kg时InP均价3.0万/片
+                # 铟价每变化1000元/kg, InP成本约变化5%
+                if commodity.get('indium_price'):
+                    inp_base = 3.0  # 万/片
+                    indium_delta = (commodity['indium_price'] - 4700) / 1000 * 0.05
+                    inp_price = round(inp_base * (1 + indium_delta), 2)
+                    # 重新计算InP净利: 15万片 × 利用率100% × InP单价 × 24%净利率
+                    inp_nm = round(15 * 1.0 * inp_price * 0.24, 2)
+                    if inp_nm != manual['semi_nm']:
+                        print(f"    📊 铟价{commodity['indium_price']}元/kg → InP单价{inp_price}万/片 → InP净利{manual['semi_nm']}→{inp_nm}亿（{inp_nm/manual['semi_nm']*100-100:+.1f}%）")
+                        manual['semi_nm'] = inp_nm
         
         # 3. 计算SOTP
         print("  计算SOTP估值...")
@@ -513,28 +564,34 @@ def main():
             json.dump(latest, f, ensure_ascii=False, indent=2)
         print(f"    ✅ data/latest_valuation.json 已写入")
         
-        # history.json - 历史追加
+        # history.json - 历史追加（仅当全部关键数据有效时）
         history_path = os.path.join(data_dir, 'history.json')
-        history = []
-        if os.path.exists(history_path):
-            try:
-                with open(history_path) as f:
-                    history = json.load(f)
-            except:
-                history = []
-        history.append({
-            'date': today_str,
-            'indium_price': commodity.get('indium_price') if commodity else None,
-            'germanium_price': commodity.get('germanium_price') if commodity else None,
-            'stock_price': spot['current_price'] if spot else None,
-            'sotp_price': valuation['target_price'] if valuation else None,
-            'target_low': valuation['target_low'] if valuation else None,
-            'target_high': valuation['target_high'] if valuation else None,
-            'upside_pct': valuation['upside_pct'] if valuation else None,
-        })
-        with open(history_path, 'w') as f:
-            json.dump(history, f, ensure_ascii=False, indent=2)
-        print(f"    ✅ data/history.json 已追加")
+        if spot and commodity and valuation and spot.get('current_price') and valuation.get('target_price'):
+            new_record = {
+                'date': today_str,
+                'indium_price': commodity.get('indium_price'),
+                'germanium_price': commodity.get('germanium_price'),
+                'stock_price': round(spot['current_price'], 2),
+                'sotp_price': round(valuation['target_price'], 2),
+                'target_low': round(valuation['target_low'], 2),
+                'target_high': round(valuation['target_high'], 2),
+                'upside_pct': round(valuation['upside_pct'], 1),
+            }
+            history = []
+            if os.path.exists(history_path):
+                try:
+                    with open(history_path) as f:
+                        history = json.load(f)
+                    # 去重：删除同日期旧记录
+                    history = [h for h in history if h.get('date') != today_str]
+                except:
+                    history = []
+            history.append(new_record)
+            with open(history_path, 'w') as f:
+                json.dump(history, f, ensure_ascii=False, indent=2)
+            print(f"    ✅ data/history.json 已追加 ({len(history)}条记录)")
+        else:
+            print(f"    ℹ️ 数据不完整，跳过history写入")
         
         # 6. 生成报告
         report = generate_report(code, spot, commodity, manual, valuation, config)
