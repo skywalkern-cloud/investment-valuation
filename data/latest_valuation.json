@@ -1,0 +1,17 @@
+{
+  "date": "2026-05-28",
+  "indium_price": 4700,
+  "germanium_price": 2025,
+  "stock_price": 82.08,
+  "semi_nm": 10.8,
+  "trad_nm": 1.6,
+  "semi_pe": 57.5,
+  "trad_pe": 17.5,
+  "semi_cap": 621,
+  "trad_cap": 28,
+  "sotp_cap": 649,
+  "target_price": 99.39,
+  "upside_pct": 21.1,
+  "version": "2.1 (产能驱动SOTP)",
+  "updated_at": "2026-05-28 10:22"
+}
