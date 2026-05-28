@@ -1457,6 +1457,92 @@ def main():
     if selected == "09988" and val.get("sotp_detail"):
         st.markdown("---")
         render_sotp_detail(val["sotp_detail"], currency_symbol=currency_symbol)
+        
+        # 阿里巴巴SOTP分部分说明（同云南锗业格式）
+        st.markdown("---")
+        st.markdown('<p class="section-header">📊 SOTP分部分说明</p>', unsafe_allow_html=True)
+        sotp_detail = val["sotp_detail"]
+        divisions = sotp_detail.get("分部列表", [])
+        if divisions:
+            for i, div in enumerate(divisions):
+                nm = div.get("分部净利润_亿", 0)
+                mid_cap = div.get("分部市值_亿_中枢", 0)
+                min_cap, max_cap = div.get("分部市值_亿_区间", (0, 0))
+                st.markdown(f"""**【{div.get('name','')}】**
+                | 参数 | 值 |
+                |---|---|
+                | 净利润(亿CNY) | **{nm:.0f}亿元** |
+                | 估值倍数 | {div.get('PE区间','')} |
+                | 市值中枢 | **{mid_cap:.0f}亿元** |
+                | 市值区间 | {min_cap:.0f} ~ {max_cap:.0f}亿元 |
+                """)
+            
+            # 控股权益
+            holdings = sotp_result.get("控股权益_亿", 0) if False else sotp_detail.get("控股权益_亿", 650)
+            st.markdown(f"""**【控股权益】**
+            | 项目 | 值 |
+            |---|---|
+            | 蚂蚁集团(33%) | **500亿元** |
+            | 其他投资(联营) | **150亿元** |
+            | 合计 | **{int(holdings)}亿元** |
+            """)
+            
+            # SOTP合计
+            mid_hkd = val.get("sotp_price", 0)
+            cur_hkd = val.get("current_price", 0)
+            up = ((mid_hkd / max(cur_hkd, 1)) - 1) * 100 if cur_hkd > 0 else -100
+            total_mid = sotp_detail.get("总市值_亿_中枢", 0)
+            tot_min, tot_max = sotp_detail.get("目标价_区间_元", (0, 0))
+            st.markdown(f"""**【SOTP合计】**
+            | 指标 | 值 |
+            |---|---|
+            | SOTP总市值 | **{total_mid:.0f}亿元CNY** |
+            | SOTP目标价区间 | {tot_min:.0f} ~ {tot_max:.0f} HKD |
+            | 目标价中枢 | **{mid_hkd:.0f} HKD** |
+            | 当前价 | {cur_hkd:.2f} HKD |
+            | 上涨空间 | {up:+.1f}% |
+            """)
+        
+        # 概率加权估值说明
+        weighted = val.get("weighted_price", None)
+        if weighted:
+            st.markdown("---")
+            st.markdown('<p class="section-header">📊 概率加权估值说明</p>', unsafe_allow_html=True)
+            config_09988 = load_stock_config("09988")
+            events = config_09988.get("events", [])
+            if events:
+                total_factor = 1.0
+                st.markdown("**关键事件与概率加权计算：**")
+                st.markdown("| 事件 | 概率 | 影响 | 幅度 | 贡献 |")
+                st.markdown("|---|---|---|---|---|")
+                for ev in events:
+                    pct = ev["probability"] * 100
+                    mag = ev["magnitude"]
+                    direction = "↑" if ev["impact"] == "positive" else "↓"
+                    contrib = (mag - 1) if ev["impact"] == "positive" else (1 - mag)
+                    contrib_pct = contrib * ev["probability"] * 100
+                    total_factor += contrib * ev["probability"] if ev["impact"] == "positive" else -contrib * ev["probability"]
+                    st.markdown(f"| {ev['name']} | {pct:.0f}% | {direction} | {abs(mag-1)*100:.0f}% | {contrib_pct:+.1f}% |")
+                st.markdown(f"""
+                **计算公式**: 加权市值 = SOTP总市值 × (1 + Σ贡献) = {total_mid:.0f}亿 × {total_factor:.3f} = **{total_mid * total_factor:.0f}亿CNY**
+                **概率加权目标价**: {weighted:.0f} HKD (vs SOTP中枢 {mid_hkd:.0f} HKD)
+                """)
+        
+        # 敏感性分析
+        sa = val.get("sensitivity")
+        if sa:
+            st.markdown("---")
+            st.markdown("**🔬 端到端敏感性分析**")
+            col1, col2, col3, col4 = st.columns(4)
+            with col1:
+                st.metric("SOTP区间", f"{sa['sotp_range'][0]:.0f}~{sa['sotp_range'][1]:.0f}HK$")
+            with col2:
+                st.metric("DCF区间", f"{sa['dcf_range'][0]:.0f}~{sa['dcf_range'][1]:.0f}HK$")
+            with col3:
+                st.metric("综合区间", f"{sa['combined_range'][0]:.0f}~{sa['combined_range'][1]:.0f}HK$")
+            with col4:
+                st.metric("推荐中枢", f"{sa['recommended_target']:.0f}HK$", delta=f"P10~P90: {sa['recommended_range'][0]:.0f}~{sa['recommended_range'][1]:.0f}HK$")
+            st.caption(f"🔬 SOTP参数×DCF(WACC×TG) | 阿里云净利={(sa.get('cloud_nm') or 0):.0f}亿 | 核心商业净利={(sa.get('core_nm') or 0):.0f}亿")
 
     # 002428: SOTP分部分说明
     if selected == "002428":
