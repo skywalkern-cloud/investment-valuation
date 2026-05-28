@@ -99,12 +99,12 @@
   },
   {
     "date": "2026-05-28",
-    "indium_price": 4700,
-    "germanium_price": 2025,
-    "stock_price": 82.75,
+    "indium_price": 4700.0,
+    "germanium_price": 2025.0,
+    "stock_price": 84.28,
     "sotp_price": 99.98,
     "target_low": 86.88,
     "target_high": 113.08,
-    "upside_pct": 20.8
+    "upside_pct": 18.6
   }
 ]
