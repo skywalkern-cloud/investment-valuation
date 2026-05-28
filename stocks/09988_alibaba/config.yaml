@@ -137,7 +137,7 @@ events:
     impact: "positive"
     magnitude: 1.05
     description: "千问App获客成本下降，本地生活(闪购)减亏"
-    source: "FY2026 All Others亏损428亿"}]}
+    source: "FY2026 All Others亏损428亿"
 
 # ============================================================
 # 端到端敏感性分析配置 (Phase 2 P1)
