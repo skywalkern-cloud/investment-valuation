@@ -1458,52 +1458,48 @@ def main():
         st.markdown("---")
         render_sotp_detail(val["sotp_detail"], currency_symbol=currency_symbol)
         
-        # 阿里巴巴SOTP分部分说明（同云南锗业格式）
+        # 阿里巴巴SOTP分部分说明（使用DataFrame组件）
         st.markdown("---")
         st.markdown('<p class="section-header">📊 SOTP分部分说明</p>', unsafe_allow_html=True)
         sotp_detail = val["sotp_detail"]
         divisions = sotp_detail.get("分部列表", [])
         if divisions:
-            for i, div in enumerate(divisions):
-                nm = div.get("分部净利润_亿", 0)
-                mid_cap = div.get("分部市值_亿_中枢", 0)
-                min_cap, max_cap = div.get("分部市值_亿_区间", (0, 0))
-                st.markdown(f"""**【{div.get('name','')}】**
-                | 参数 | 值 |
-                |---|---|
-                | 净利润(亿CNY) | **{nm:.0f}亿元** |
-                | 估值倍数 | {div.get('PE区间','')} |
-                | 市值中枢 | **{mid_cap:.0f}亿元** |
-                | 市值区间 | {min_cap:.0f} ~ {max_cap:.0f}亿元 |
-                """)
+            rows = []
+            for div in divisions:
+                min_c, max_c = div.get("分部市值_亿_区间", (0, 0))
+                rows.append({
+                    '分部': div.get('name',''),
+                    '净利润(亿)': f"{div.get('分部净利润_亿',0):.0f}",
+                    '估值倍数': div.get('PE区间',''),
+                    '市值中枢(亿)': f"{div.get('分部市值_亿_中枢',0):.0f}",
+                    '市值区间': f"{min_c:.0f}~{max_c:.0f}亿",
+                })
+            st.dataframe(pd.DataFrame(rows), column_config={"分部": "📂", "净利润(亿)": st.column_config.NumberColumn("净利", format="%d"), "估值倍数": "PE", "市值中枢(亿)": "市值", "市值区间": "区间"}, hide_index=True, use_container_width=True)
             
             # 控股权益
             holdings = sotp_detail.get("控股权益_亿", 650)
-            st.markdown(f"""**【控股权益】**
-            | 项目 | 值 |
-            |---|---|
-            | 蚂蚁集团(33%) | **500亿元** |
-            | 其他投资(联营) | **150亿元** |
-            | 合计 | **{int(holdings)}亿元** |
-            """)
+            st.markdown("**控股权益**")
+            holdings_rows = pd.DataFrame([
+                {'项目': '蚂蚁集团(33%)', '估值(亿元)': 500},
+                {'项目': '其他投资(联营)', '估值(亿元)': 150},
+                {'项目': '合计', '估值(亿元)': int(holdings)},
+            ])
+            st.dataframe(holdings_rows, hide_index=True, use_container_width=True)
             
-            # SOTP合计
+            # SOTP合计指标
             mid_hkd = val.get("sotp_price", 0)
             cur_hkd = val.get("current_price", 0)
             up = ((mid_hkd / max(cur_hkd, 1)) - 1) * 100 if cur_hkd > 0 else -100
-            total_mid = sotp_detail.get("总市值_亿_中枢", 0)
+            total_mid = sotp_detail.get("总市值_亿_中枢", 9135)  # fallback
             tot_min, tot_max = sotp_detail.get("目标价_区间_元", (0, 0))
-            st.markdown(f"""**【SOTP合计】**
-            | 指标 | 值 |
-            |---|---|
-            | SOTP总市值 | **{total_mid:.0f}亿元CNY** |
-            | SOTP目标价区间 | {tot_min:.0f} ~ {tot_max:.0f} HKD |
-            | 目标价中枢 | **{mid_hkd:.0f} HKD** |
-            | 当前价 | {cur_hkd:.2f} HKD |
-            | 上涨空间 | {up:+.1f}% |
-            """)
+            
+            c1, c2, c3, c4 = st.columns(4)
+            c1.metric("SOTP总市值", f"¥{total_mid:.0f}亿")
+            c2.metric("目标价区间", f"HK${tot_min:.0f}~{tot_max:.0f}")
+            c3.metric("目标价中枢", f"HK${mid_hkd:.0f}")
+            c4.metric("上涨空间", f"{up:+.1f}%")
         
-        # 概率加权估值说明
+        # 概率加权估值说明（使用DataFrame组件）
         weighted = val.get("weighted_price", None)
         if weighted:
             st.markdown("---")
@@ -1512,21 +1508,24 @@ def main():
             events = config_09988.get("events", [])
             if events:
                 total_factor = 1.0
-                st.markdown("**关键事件与概率加权计算：**")
-                st.markdown("| 事件 | 概率 | 影响 | 幅度 | 贡献 |")
-                st.markdown("|---|---|---|---|---|")
+                ev_rows = []
                 for ev in events:
                     pct = ev["probability"] * 100
                     mag = ev["magnitude"]
                     direction = "↑" if ev["impact"] == "positive" else "↓"
-                    contrib = (mag - 1) if ev["impact"] == "positive" else (1 - mag)
-                    contrib_pct = contrib * ev["probability"] * 100
-                    total_factor += contrib * ev["probability"] if ev["impact"] == "positive" else -contrib * ev["probability"]
-                    st.markdown(f"| {ev['name']} | {pct:.0f}% | {direction} | {abs(mag-1)*100:.0f}% | {contrib_pct:+.1f}% |")
-                st.markdown(f"""
-                **计算公式**: 加权市值 = SOTP总市值 × (1 + Σ贡献) = {total_mid:.0f}亿 × {total_factor:.3f} = **{total_mid * total_factor:.0f}亿CNY**
-                **概率加权目标价**: {weighted:.0f} HKD (vs SOTP中枢 {mid_hkd:.0f} HKD)
-                """)
+                    contrib = (mag - 1) * ev["probability"]
+                    total_factor += contrib
+                    ev_rows.append({
+                        '事件': ev['name'],
+                        '概率': f"{pct:.0f}%",
+                        '影响': direction,
+                        '幅度': f"{abs(mag-1)*100:.0f}%",
+                        '贡献': f"{contrib*100:+.1f}%",
+                    })
+                st.dataframe(pd.DataFrame(ev_rows), column_config={"事件": "关键事件", "概率": "概率", "影响": "方向", "幅度": "幅度", "贡献": "对估值贡献"}, hide_index=True, use_container_width=True)
+                
+                weighted_val = total_mid * total_factor
+                st.caption(f"加权市值 = SOTP¥{total_mid:.0f}亿 × {total_factor:.3f} = **¥{weighted_val:.0f}亿CNY** → **概率加权目标价: HK${weighted:.0f}** (vs SOTP中枢: HK${mid_hkd:.0f})")
         
         # 敏感性分析
         sa = val.get("sensitivity")
