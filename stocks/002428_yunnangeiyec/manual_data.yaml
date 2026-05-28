@@ -1,16 +1,16 @@
-date: '2025-12-31'
-version: 2.0 (AI材料逻辑重构)
-current_price: 69.67
-stock_price: 69.67
-current_date: '20260429'
-indium_price: 26500
-germanium_price: 12000
+date: '2026-05-28'
+version: 2.1 (v2.0框架写入bitable)
+current_price: 82.08
+stock_price: 82.08
+current_date: '20260528'
+indium_price: 4700
+germanium_price: 2025
 semiconductor:
   产能_万片_年: 15
   扩产后产能_万片_年: 45
   扩产投资_亿元: 1.89
   产能利用率: 1.0
-  InP衬底均价_万元_片: 2.65
+  InP衬底均价_万元_片: 3.0
   全年锁定订单_万片: 23
   毛利率: 0.45
   净利率: 0.24
@@ -20,42 +20,8 @@ semiconductor:
   供需缺口: 全球>70%缺口
 traditional:
   锗金属产量_吨_年: 30
-  锗价_万元_公斤: 1.2
+  锗价_万元_公斤: 1.775
   毛利率: 0.4
   净利率: 0.3
-  锗矿储量: 国内前三（具体数据上市公司公告）
-Q1_2026:
-  revenue_bn: 21.2
-  net_profit_bn: 5.1
-  shipment_4inch_wan: 8
-  utilization: 1.0
-  note: Q1实际发货8万片（满产），一季报4月30日披露
-annual_2026:
-  revenue_bn: 39.75
-  net_profit_bn: 9.54
-  inP_price_万元_片: 2.65
-  capacity_4inch_wan: 15
-  note: 15万片满产×2.65万/片=39.75亿收入，24%净利率=9.54亿净利
-financials:
-  total_shares_bn: 6.53
-  float_ratio: 0.85
-  revenue: 10.66
-  net_profit: 0.2
-  net_profit_attr: 0.2
-  eps: 0.03
-  gross_margin: 0.2112
-  roe: 0.0137
-  date: '2025-12-31'
-manufacturing:
-  产能: 30
-  良率: 0.88
-  稼动率: 0.85
-  原料成本: 8500
-  净利率: 0.3
-fabless:
-  订单管道: 23.0
-  研发成功率: 0.9
-  终端渗透率: 0.3
-  认证进度: 100
-  BOM占比: 0.35
-  净利率: 0.24
+  锗矿储量: 国内前三
+note: 商品价格由SMM自动采集(v2.0框架)
