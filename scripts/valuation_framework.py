@@ -465,7 +465,78 @@ def main():
         
         write_bitable_record(config['bitable_app'], config['bitable_table'], bitable_fields)
         
-        # 5. 生成报告
+        # 5. 写入共享JSON文件（供Streamlit读取）
+        # 股价API失败时从历史记录取上一日价格
+        if not spot:
+            _hist_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'data', 'history.json')
+            if os.path.exists(_hist_path):
+                try:
+                    with open(_hist_path) as _f:
+                        _hist = json.load(_f)
+                    if _hist and _hist[-1].get('stock_price'):
+                        # 创建一个最小化spot，只含股价
+                        spot = {'current_price': _hist[-1]['stock_price'], 'change_pct': 0, 'pe_ttm': 0, 'pb': 0, 'high_52w': 0, 'low_52w': 0, 'turnover_rate': 0, 'market_cap': 0}
+                        print(f"    ℹ️ 股价API失败，使用上一日价格: {spot['current_price']}元")
+                        # 用历史价格重算SOTP
+                        valuation = calc_sotp(spot, manual, config)
+                        if valuation:
+                            print(f"    ✅ 用历史价重算SOTP: 目标价={valuation['target_price']}元")
+                except: pass
+        
+        latest = {
+            'date': today_str,
+            'indium_price': commodity.get('indium_price') if commodity else None,
+            'germanium_price': commodity.get('germanium_price') if commodity else None,
+            'stock_price': spot['current_price'] if spot else None,
+            'semi_nm': valuation['semi_nm'] if valuation else None,
+            'trad_nm': valuation['trad_nm'] if valuation else None,
+            'semi_pe': valuation['semi_pe'] if valuation else None,
+            'trad_pe': valuation['trad_pe'] if valuation else None,
+            'semi_cap': valuation['semi_cap'] if valuation else None,
+            'trad_cap': valuation['trad_cap'] if valuation else None,
+            'sotp_cap': valuation['total_cap'] if valuation else None,
+            'target_price': valuation['target_price'] if valuation else None,
+            'upside_pct': valuation['upside_pct'] if valuation else None,
+            'target_low': valuation['target_low'] if valuation else None,
+            'target_high': valuation['target_high'] if valuation else None,
+            'wacc': manual.get('wacc'),
+            'tg': manual.get('tg'),
+            'shares': config['shares'],
+            'version': '2.1 (产能驱动SOTP)',
+            'updated_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+        }
+        data_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'data')
+        os.makedirs(data_dir, exist_ok=True)
+        
+        # latest_valuation.json - Streamlit主数据源
+        with open(os.path.join(data_dir, 'latest_valuation.json'), 'w') as f:
+            json.dump(latest, f, ensure_ascii=False, indent=2)
+        print(f"    ✅ data/latest_valuation.json 已写入")
+        
+        # history.json - 历史追加
+        history_path = os.path.join(data_dir, 'history.json')
+        history = []
+        if os.path.exists(history_path):
+            try:
+                with open(history_path) as f:
+                    history = json.load(f)
+            except:
+                history = []
+        history.append({
+            'date': today_str,
+            'indium_price': commodity.get('indium_price') if commodity else None,
+            'germanium_price': commodity.get('germanium_price') if commodity else None,
+            'stock_price': spot['current_price'] if spot else None,
+            'sotp_price': valuation['target_price'] if valuation else None,
+            'target_low': valuation['target_low'] if valuation else None,
+            'target_high': valuation['target_high'] if valuation else None,
+            'upside_pct': valuation['upside_pct'] if valuation else None,
+        })
+        with open(history_path, 'w') as f:
+            json.dump(history, f, ensure_ascii=False, indent=2)
+        print(f"    ✅ data/history.json 已追加")
+        
+        # 6. 生成报告
         report = generate_report(code, spot, commodity, manual, valuation, config)
         print(f"\n{report}\n")
         
@@ -481,7 +552,7 @@ def main():
     
     print(f"\n{'='*40}")
     write_ok = sum(1 for r in results.values() if r.get('bitable_written'))
-    print(f"✅ 完成: {write_ok}/{len(results)} 写入bitable成功")
+    print(f"✅ 完成: {write_ok}/{len(results)} 写入bitable+共享JSON成功")
     
     return results
 
