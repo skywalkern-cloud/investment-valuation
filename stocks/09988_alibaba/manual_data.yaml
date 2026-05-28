@@ -4,10 +4,10 @@
 date: "2026-05-14"
 
 market:
-  current_price: 143.1
+  current_price: 120.9
   currency: "HKD"
   exchange: "HKEX"
-  last_updated: "2026-05-14"  # 新浪实时行情
+  last_updated: "2026-05-28"  # 腾讯实时行情
 
 # ── FY2026 官方数据 ──────────────────────────────────────
 # 数据来源：阿里巴巴官方业绩公告（2026年3月季度及2026财年）
