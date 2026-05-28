@@ -1478,7 +1478,7 @@ def main():
                 """)
             
             # 控股权益
-            holdings = sotp_result.get("控股权益_亿", 0) if False else sotp_detail.get("控股权益_亿", 650)
+            holdings = sotp_detail.get("控股权益_亿", 650)
             st.markdown(f"""**【控股权益】**
             | 项目 | 值 |
             |---|---|
