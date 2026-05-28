@@ -234,7 +234,7 @@ def run_dcf(
     engine = DiscountingEngine()
 
     # WACC
-    wacc = engine.calc_wacc(rf, beta, market_premium=0.07)
+    wacc = engine.calc_wacc(risk_free_rate=rf, beta=beta, market_premium=0.07)
 
     # FCF projections
     if fcf_proj is None:
