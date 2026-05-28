@@ -1,5 +1,5 @@
 date: '2026-05-28'
-version: 2.1 (v2.0框架写入bitable)
+version: "2.1 (v2.0框架写入bitable)"
 current_price: 82.08
 stock_price: 82.08
 current_date: '20260528'
@@ -24,4 +24,46 @@ traditional:
   毛利率: 0.4
   净利率: 0.3
   锗矿储量: 国内前三
-note: 商品价格由SMM自动采集(v2.0框架)
+Q1_2026:
+  revenue_bn: 2.89
+  net_profit_bn: 0.091
+  shipment_4inch_wan: 8
+  utilization: 1.0
+  note: 2026一季报营收2.89亿(同比+52%)，净利911万(同比+339%)
+annual_2026:
+  revenue_bn: 10.66
+  net_profit_bn: 0.2
+  inP_price_万元_片: 3.0
+  capacity_4inch_wan: 15
+  note: 2025年报营收10.66亿(同比+38.9%)，归母净利2015万(-62%)
+  sotp_valuation:
+    半导体净利_亿: 10.8
+    传统净利_亿: 1.6
+    半导体PE: 60
+    传统PE: 15
+    SOTP总市值_亿: 672
+    SOTP目标价_元: 99.39
+financials:
+  total_shares_bn: 6.53
+  float_ratio: 0.85
+  revenue: 10.66
+  net_profit: 0.2
+  net_profit_attr: 0.2
+  eps: 0.03
+  gross_margin: 0.2112
+  roe: 0.0137
+  date: '2025-12-31'
+manufacturing:
+  产能: 30
+  良率: 0.88
+  稼动率: 0.85
+  原料成本: 8500
+  净利率: 0.3
+fabless:
+  订单管道: 23.0
+  研发成功率: 0.9
+  终端渗透率: 0.3
+  认证进度: 100
+  BOM占比: 0.35
+  净利率: 0.24
+note: 商品价格由SMM自动采集(v2.0框架) | 股价来自Eastmoney备用接口
