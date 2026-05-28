@@ -30,14 +30,11 @@ STOCK_CONFIG = {
         'name': '云南锗业',
         'market': 'SZ',
         'name_en': 'Yunnan Germanium',
-        # SOTP配置
-        'shares': 6.53,  # 总股本（亿股）
+        'shares': 6.53,
         'semi_pe_min': 50, 'semi_pe_max': 65,
         'trad_pe_min': 15, 'trad_pe_max': 20,
-        # 飞书Bitable
         'bitable_app': 'EXpqbt8RdaVNsaslViKclTu9nCe',
         'bitable_table': 'tblAH85HuqZuyLSH',
-        # 字段定义
         'bitable_fields': {
             '日期':     {'type': 'date', 'key': 'date_str'},
             '股价(元)':  {'type': 'number', 'key': 'current_price'},
@@ -59,6 +56,14 @@ STOCK_CONFIG = {
             'SOTP上限':  {'type': 'number', 'key': 'target_high'},
             '潜在空间':  {'type': 'text', 'key': 'upside_str'},
         },
+    },
+    '09988': {
+        'name': '阿里巴巴',
+        'market': 'HK',
+        'name_en': 'Alibaba',
+        'shares': 191.9,  # 亿H股
+        'currency': 'HKD',
+        # 无bitable（不入飞书表格，只写history.json供Streamlit趋势图）
     },
 }
 
@@ -403,14 +408,85 @@ def main():
         print(f"📈 {config['name']}({code})...")
         today_str = datetime.now().strftime('%Y-%m-%d')
         
-        # 1. 采集自动数据
-        print("  采集行情...")
-        spot = get_stock_spot(code, config.get('market', 'SZ'))
-        if spot:
-            print(f"    ✅ 股价={spot['current_price']}元 PE={spot['pe_ttm']:.0f}")
-        
-        print("  采集商品价格...")
-        commodity = get_commodity_prices()
+        # 阿里：走阿里模型（港股价格 + SOTP模型）
+        if code == '09988':
+            spot = None
+            commodity = None
+            valuation = None
+            manual = {}
+            try:
+                # 1. 阿里股价（腾讯行情）
+                print("  采集阿里行情...")
+                import re as _re
+                resp = requests.get('https://qt.gtimg.cn/q=hk09988', timeout=10)
+                resp.encoding = 'gbk'
+                for _line in resp.text.split('\n'):
+                    if 'hk09988' in _line:
+                        _parts = _line.split('~')
+                        if len(_parts) > 3:
+                            _price = float(_parts[3])
+                            spot = {'current_price': _price, 'change_pct': float(_parts[32]) if len(_parts)>32 else 0}
+                            print(f"    ✅ 阿里股价={_price} HKD")
+                            break
+                
+                # 2. 跑阿里SOTP模型
+                if spot:
+                    print("  运行阿里SOTP模型...")
+                    _model_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'stocks', '09988_alibaba', 'model.py')
+                    import importlib.machinery as _im
+                    _loader = _im.SourceFileLoader('alibaba_cron_model', str(_model_path))
+                    _alibaba_mod = _loader.load_module()
+                    _sotp = _alibaba_mod.AlibabaSOTP()
+                    _sotp_r = _sotp.run(current_price=spot['current_price'])
+                    
+                    valuation = {
+                        'target_price': _sotp_r.get('目标价_中枢_元', 0),
+                        'target_low': _sotp_r.get('目标价_区间_元', (0,0))[0],
+                        'target_high': _sotp_r.get('目标价_区间_元', (0,0))[1],
+                        'upside_pct': round((_sotp_r.get('目标价_中枢_元', 0)/max(spot['current_price'],1)-1)*100, 1),
+                        'total_cap': _sotp_r.get('总市值_亿_中枢', 0),
+                    }
+                    print(f"    ✅ 阿里SOTP目标价={valuation['target_price']:.0f} HKD (当前{spot['current_price']:.0f} HKD, {valuation['upside_pct']:+.1f}%)")
+            except Exception as _e:
+                print(f"    ⚠️ 阿里采集失败: {_e}")
+            
+            # 写入history.json
+            if spot and valuation and valuation.get('target_price'):
+                _dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'data')
+                _hp = os.path.join(_dir, 'history.json')
+                _hist = []
+                if os.path.exists(_hp):
+                    try:
+                        with open(_hp) as _f:
+                            _hist = json.load(_f)
+                        _hist = [h for h in _hist if not (h.get('stock_code') == '09988' and h.get('date') == today_str)]
+                    except:
+                        _hist = []
+                _hist.append({
+                    'stock_code': '09988',
+                    'date': today_str,
+                    'stock_price': round(spot['current_price'], 2),
+                    'sotp_price': round(valuation['target_price'], 2),
+                    'target_low': round(valuation['target_low'], 2),
+                    'target_high': round(valuation['target_high'], 2),
+                    'upside_pct': round(valuation['upside_pct'], 1),
+                })
+                with open(_hp, 'w') as _f:
+                    json.dump(_hist, _f, ensure_ascii=False, indent=2)
+                print(f"    ✅ 阿里history.json已写入 ({today_str})")
+            
+            # 跳过后续bitable/商品价格等处理
+            results[code] = {'spot': spot, 'valuation': valuation, 'alibaba': True}
+            continue
+        else:
+            # 1. 采集自动数据
+            print("  采集行情...")
+            spot = get_stock_spot(code, config.get('market', 'SZ'))
+            if spot:
+                print(f"    ✅ 股价={spot['current_price']}元 PE={spot['pe_ttm']:.0f}")
+            
+            print("  采集商品价格...")
+            commodity = get_commodity_prices()
         
         # 2. 读取bitable已有的手动财务数据
         print("  读取bitable已有财务数据...")
@@ -463,16 +539,13 @@ def main():
         else:
             print("    ℹ️ 无SOTP结果（缺少手动财务数据）")
         
-        # 4. 写入Bitable
-        print("  写入飞书Bitable...")
-        bitable_fields = {}
-        
-        # 日期
-        bitable_fields['日期'] = int(datetime.now().timestamp() * 1000)  # 飞书date类型需毫秒时间戳
-        
-        # 自动行情字段（只写入表中存在的字段，其余数据放入备注）
-        if spot:
-            bitable_fields['股价(元)'] = spot['current_price']
+        # 4. 写入Bitable（仅A股有bitable配置）
+        if 'bitable_app' in config:
+            print("  写入飞书Bitable...")
+            bitable_fields = {}
+            bitable_fields['日期'] = int(datetime.now().timestamp() * 1000)
+            if spot:
+                bitable_fields['股价(元)'] = spot['current_price']
         
         # 商品价格
         if commodity:
@@ -567,7 +640,9 @@ def main():
         # history.json - 历史追加（仅当全部关键数据有效时）
         history_path = os.path.join(data_dir, 'history.json')
         if spot and commodity and valuation and spot.get('current_price') and valuation.get('target_price'):
+            _hist_code = config.get('stock_code_hist', code)
             new_record = {
+                'stock_code': _hist_code,
                 'date': today_str,
                 'indium_price': commodity.get('indium_price'),
                 'germanium_price': commodity.get('germanium_price'),
