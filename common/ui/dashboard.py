@@ -1263,6 +1263,11 @@ def render_soccer(sotp_price: float, dcf_price: float, current_price: float,
 def render_heatmap(fcf_proj: List[float], shares: float = 6.53, currency_symbol: str = "¥"):
     st.markdown('<p class="section-header">🌡️ DCF双变量敏感度分析</p>', unsafe_allow_html=True)
     engine = DiscountingEngine()
+    
+    # 空或无数据的fcf_proj → 跳过
+    if not fcf_proj or len(fcf_proj) < 2:
+        st.info("ℹ️ DCF敏感度分析需要至少2期现金流数据。此股票暂未配置。")
+        return
 
     tg_vals = [0.02, 0.03, 0.04]
     wacc_vals = [0.05, 0.065, 0.08]
