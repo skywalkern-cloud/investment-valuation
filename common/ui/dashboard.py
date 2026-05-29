@@ -1055,6 +1055,60 @@ def run_huaming_valuation(
         return {"sotp_price": 0, "dcf_price": 0, "current_price": current_price, "fcf_proj": [0, 0, 0, 0, 0]}
 
 
+
+def run_cmoc_valuation(
+    rf: float, beta: float, tg: float, current_price: float
+) -> Dict[str, Any]:
+    """洛阳钼业(603993)估值计算"""
+    import warnings
+    import yaml
+    from pathlib import Path
+    import importlib.machinery
+    warnings.filterwarnings("ignore")
+
+    repo_root = Path(__file__).parent.parent.parent
+    import sys
+    for mod in ["model", "cmoc_model"]:
+        if mod in sys.modules:
+            del sys.modules[mod]
+    sys.path.insert(0, str(repo_root))
+    sys.path.insert(0, str(repo_root / "stocks" / "603993_cmoc"))
+    sys.path.insert(0, str(repo_root / "common"))
+
+    try:
+        model_path = repo_root / "stocks" / "603993_cmoc" / "model.py"
+        loader = importlib.machinery.SourceFileLoader("cmoc_model", str(model_path))
+        cmoc_module = loader.load_module()
+        CmocSOTP = cmoc_module.CmocSOTP
+
+        sotp = CmocSOTP.from_config()
+        result = sotp.calculate(current_price)
+
+        return {
+            "target_price": result.get("target_price", 0),
+            "target_low": result.get("target_low", 0),
+            "target_high": result.get("target_high", 0),
+            "current_price": current_price,
+            "upside": result.get("upside", 0),
+            "total_market_cap": result.get("total_market_cap", 0),
+            "total_profit": result.get("total_profit", 0),
+            "segments": result.get("segments", []),
+            "sotp_detail": result,
+        }
+    except Exception as e:
+        print(f"⚠️ 洛阳钼业估值失败: {e}")
+        import traceback
+        traceback.print_exc()
+        return {
+            "target_price": 0,
+            "target_low": 0,
+            "target_high": 0,
+            "current_price": current_price,
+            "upside": 0,
+            "segments": [],
+        }
+
+
 # ========== 趋势图 ==========
 def render_trend(df: pd.DataFrame, stock_code: str):
     st.markdown('<p class="section-header">📈 历史趋势</p>', unsafe_allow_html=True)
