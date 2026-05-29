@@ -1,5 +1,5 @@
 # 洛阳钼业(603993) SOTP估值模型配置
-# CMOC Group - 全球铜钴钼钨龙头企业
+# CMOC Group - 全球铜钴钼钨龙头企业，AI基建最大铜受益标的之一
 # A股: 603993.SH | 港股: 03993.HK
 
 meta:
@@ -14,42 +14,50 @@ meta:
 
 methodology_notes:
   terminal_growth:
-    value: 0.02
-    assumption: "全球铜消费增速2%，大宗商品长期增长中枢"
-    rationale: "铜长期需求受益于新能源/电动车/电网升级"
+    value: 0.03
+    assumption: "AI算力集群爆发+全球电网重构驱动的铜需求结构性增长"
+    rationale: >
+      AI数据中心每MW用铜27-33吨，到2035年累计铜消耗将超430万吨。
+      变配电重构+电网扩容每GW需铜约5500吨，高盛估计至2030年AI电网投资达7200亿美元。
+      铜矿供给面临16年开发周期、品位下降40%、TC/RC深度倒挂的结构性瓶颈。
+      2025年全球铜精矿供需缺口已达84.8万吨且持续扩大。
     sensitivity:
-      - { value: 0.01, label: "悲观", impact: "-15%" }
-      - { value: 0.02, label: "基准", impact: "基准假设" }
-      - { value: 0.03, label: "乐观", impact: "+15%" }
+      - { value: 0.02, label: "悲观", impact: "-15%" }
+      - { value: 0.03, label: "基准", impact: "基准假设" }
+      - { value: 0.04, label: "乐观", impact: "+15%" }
   wacc:
     risk_free_rate:
       source: "10Y CN Bond"
       auto: false
       fallback: 0.025
-    beta: 0.85
+    beta: 0.95
     market_premium: 0.05
 
 segments:
   - name: "铜钴业务（刚果金TFM+KFM）"
-    description: "TFM混合矿扩建+ KFM新矿，合计产能~650kt铜+80kt钴"
-    net_profit_cny: 160.0  # 亿元（2025年铜钴利润占比约78%）
-    pe_min: 14
-    pe_base: 20
-    pe_max: 25
-    weight: 0.78
+    description: >
+      TFM混合矿扩建至450kt铜+50kt钴产能。
+      KFM铜钴矿一期200kt铜+30kt钴产能已投产。
+      CMOC是全球前十大铜矿生产商之一，成本曲线前25%分位。
+      AI基建驱动铜需求结构性增长，刚果金低成本铜矿资产价值重估。
+    net_profit_cny: 175.0  # 亿元（基于2025年报203亿+Q1年化310亿，铜钴占比约86%）
+    pe_min: 16
+    pe_base: 22
+    pe_max: 28
+    weight: 0.86
     variables:
-      铜价_美元吨: 9000
-      钴价_美元磅: 15
-      铜产量_万吨: 55.0
-      钴产量_万吨: 6.5
+      铜价_美元吨: 9500
+      钴价_美元磅: 16
+      铜产量_万吨: 58.0
+      钴产量_万吨: 6.8
 
   - name: "钼钨业务（中国三道庄等）"
     description: "钼精矿约1.5万吨/年、钨精矿约7000吨/年，国内钼钨双龙头"
-    net_profit_cny: 28.0  # 亿元（2025年约14%利润占比）
+    net_profit_cny: 22.0  # 亿元（Q1年化约11%占比，随着铜钴占比扩大而相对缩小）
     pe_min: 12
     pe_base: 15
-    pe_max: 22
-    weight: 0.14
+    pe_max: 20
+    weight: 0.08
     variables:
       钼价_美元磅: 25
       钨价_万元吨: 13
@@ -57,41 +65,43 @@ segments:
       钨产量_万吨: 0.7
 
   - name: "铌磷业务（巴西）"
-    description: "铌铁约8000吨/年、磷肥约100万吨/年，全球最大铌生产商之一"
-    net_profit_cny: 12.0  # 亿元（2025年约6%）
+    description: "铌铁约8000吨/年、磷肥约100万吨/年"
+    net_profit_cny: 10.0  # 亿元
     pe_min: 8
     pe_base: 12
     pe_max: 16
-    weight: 0.06
+    weight: 0.04
     variables:
       铌铁价格_美元磅: 25
       磷肥价格_美元吨: 600
 
   - name: "澳洲铜金业务（NPM 80%）"
     description: "Northparkes铜金矿80%权益，年产铜约3万吨"
-    net_profit_cny: 5.0  # 亿元（2025年约2%）
-    pe_min: 6
-    pe_base: 8
-    pe_max: 12
+    net_profit_cny: 5.0  # 亿元
+    pe_min: 8
+    pe_base: 10
+    pe_max: 14
     weight: 0.02
 
 events:
-  - name: "铜价高位维持（>$9500）"
-    probability: 0.40
+  - name: "AI铜需求超预期（数据中心+电网双爆发）"
+    probability: 0.45
     impact: "positive"
-    magnitude: 1.35
-  - name: "刚果金出口禁令/政策风险"
-    probability: 0.15
-    impact: "negative"
-    magnitude: 0.70
-  - name: "钴价回暖（>$20/lb）"
+    magnitude: 1.50
+    rationale: "AI DC年均用铜40万吨+电网重构每GW 5500吨铜，2030年前结构性供需缺口持续扩大"
+  - name: "铜价突破$12000（供给缺口持续扩大）"
     probability: 0.30
     impact: "positive"
-    magnitude: 1.10
-  - name: "铜价大幅下跌（<$7500）"
-    probability: 0.20
+    magnitude: 1.80
+    rationale: "TC/RC负值倒挂、新矿16年周期、品位下降40%→铜价有望长期维持高位"
+  - name: "刚果金政策/出口风险"
+    probability: 0.15
     impact: "negative"
-    magnitude: 0.55
+    magnitude: 0.65
+  - name: "铜价大幅下跌（<$7500，全球经济衰退）"
+    probability: 0.10
+    impact: "negative"
+    magnitude: 0.50
 
 bitable:
   enabled: false
