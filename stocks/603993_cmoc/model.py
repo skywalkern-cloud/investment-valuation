@@ -188,8 +188,8 @@ class CmocSOTP:
         copper_change = copper_price - 9000  # 美元变化
         cobalt_change = cobalt_price - 15     # 美元/lb变化
 
-        profit_impact = (copper_change / 1000 * 30) + (cobalt_change / 5 * 8)
-        adjusted_copper_profit = 160.0 + profit_impact
+        profit_impact = (copper_change / 1000 * 35) + (cobalt_change / 5 * 8)
+        adjusted_copper_profit = 175.0 + profit_impact
 
         # 更新铜钴分部的净利
         from copy import deepcopy
