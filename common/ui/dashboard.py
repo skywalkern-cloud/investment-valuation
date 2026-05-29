@@ -138,6 +138,7 @@ STOCK_REGISTRY = {
         "symbol_tencent": "sh603993",
         "shares": 213.9,
         "config_path": "stocks/603993_cmoc/config.yaml",
+        "fcf_proj": [138, 152, 167, 184, 202],  # 亿元（基于SOTP利润×65% FCF转化率，年增10%假设）
     },
 }
 
@@ -2106,7 +2107,7 @@ def main():
 
     st.markdown("---")
     render_heatmap(
-        val.get("fcf_proj", []),
+        val.get("fcf_proj") or stock_info.get("fcf_proj", []),
         shares=stock_info["shares"],
         currency_symbol=currency_symbol
     )
