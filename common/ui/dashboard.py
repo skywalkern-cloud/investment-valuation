@@ -1918,7 +1918,7 @@ def main():
         seg_df = pd.DataFrame([
             {
                 "分部": s["name"],
-                "预测净利(亿)": s["net_profit_cny"],
+                "预测净利(亿)": s["net_profit"],
                 "PE倍数": s["pe_base"],
                 "分部估值(亿)": f'{s["cap_base"]:.0f}',
                 "PE区间": s["pe_range"],
@@ -1926,7 +1926,7 @@ def main():
             for s in val["segments"]
         ])
         # 汇总行
-        total_profit = sum(s["net_profit_cny"] for s in val["segments"])
+        total_profit = sum(s["net_profit"] for s in val["segments"])
         total_cap = sum(s["cap_base"] for s in val["segments"])
         summary = pd.DataFrame([{
             "分部": "合计",
