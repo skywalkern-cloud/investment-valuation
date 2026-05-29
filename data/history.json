@@ -122,5 +122,25 @@
     "target_low": 85.55,
     "target_high": 126.67,
     "upside_pct": -12.2
+  },
+  {
+    "stock_code": "002428",
+    "date": "2026-05-29",
+    "indium_price": 4700.0,
+    "germanium_price": 2025.0,
+    "stock_price": 89.85,
+    "sotp_price": 99.98,
+    "target_low": 86.88,
+    "target_high": 113.08,
+    "upside_pct": 11.3
+  },
+  {
+    "stock_code": "09988",
+    "date": "2026-05-29",
+    "stock_price": 121.8,
+    "sotp_price": 106.11,
+    "target_low": 85.55,
+    "target_high": 126.67,
+    "upside_pct": -12.9
   }
 ]
