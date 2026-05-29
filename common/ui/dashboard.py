@@ -1117,10 +1117,12 @@ def run_cmoc_valuation(
             config = yaml.safe_load(f)
         events = config.get("events", [])
         weighted_price = None
+        pw_detail = None
         if events:
             pw = ProbabilityWeightEngine.from_config_list(events)
             weighted_cap = pw.apply(total_cap)
             weighted_price = weighted_cap / shares
+            pw_detail = pw.breakdown(total_cap)
 
         return {
             "target_price": result.get("target_price", 0),
@@ -1140,6 +1142,7 @@ def run_cmoc_valuation(
             "fcf_proj": fcf_proj,
             "wacc": wacc,
             "wacc_pct": wacc * 100,
+            "pw_detail": pw_detail,
         }
     except Exception as e:
         print(f"⚠️ 洛阳钼业估值失败: {e}")
@@ -2022,6 +2025,43 @@ def main():
 - 全球经济衰退导致铜价暴跌（10%概率触发，影响-50%）
 - TC/RC负值可能影响冶炼端利润
         """)
+        
+    
+    # 603993: 概率加权估值详情
+    if selected == "603993":
+        pw_detail_993 = val.get("pw_detail")
+        if pw_detail_993 and pw_detail_993.get("events"):
+            st.markdown("<hr style='margin: 8px 0'>", unsafe_allow_html=True)
+            st.markdown('<p class="section-header">📊 概率加权估值说明</p>', unsafe_allow_html=True)
+
+            sotp_base = pw_detail_993.get("base_value", 0)
+            sotp_adj = pw_detail_993.get("adjusted_value", 0)
+            multiplier = pw_detail_993.get("total_multiplier", 1.0)
+
+            st.markdown(f"""
+            | 指标 | 值 |
+            |---|---|
+            | SOTP基准市值 | **{sotp_base:.0f}亿元** |
+            | 综合乘数 | **{multiplier:.3f}x** |
+            | 概率加权市值 | **{sotp_adj:.0f}亿元** |
+            | 概率加权目标价 | **{val.get('weighted_price', 0):.1f}元** |
+            """)
+
+            st.markdown("**【事件拆解】**")
+            events_data = []
+            for ev in pw_detail_993.get("events", []):
+                direction = "↑" if ev["impact"] == "positive" else "↓"
+                contrib_pct = ev["contribution"] * 100
+                events_data.append({
+                    "事件": ev["name"],
+                    "概率": f"{ev['probability']*100:.0f}%",
+                    "影响幅度": f"{direction}{abs(ev['magnitude']-1)*100:.0f}%",
+                    "贡献": f"{contrib_pct:+.2f}%",
+                })
+            df_events = pd.DataFrame(events_data)
+            st.dataframe(df_events, use_container_width=True)
+
+            st.caption(f"📝 加权市值 = {sotp_base:.0f}亿 × (1 + Σ贡献) = {sotp_adj:.0f}亿 → 目标价 {val.get('weighted_price', 0):.1f}元")
         
     # 002270: SOTP分部分说明 + DCF说明 + 概率加权说明
     if selected == "002270":
