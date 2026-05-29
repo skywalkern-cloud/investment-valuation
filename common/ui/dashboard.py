@@ -1060,7 +1060,9 @@ def run_huaming_valuation(
 def run_cmoc_valuation(
     rf: float, beta: float, tg: float, current_price: float
 ) -> Dict[str, Any]:
-    """洛阳钼业(603993)估值计算"""
+    """洛阳钼业(603993)估值计算
+    含SOTP分部估值 + DCF + 概率加权事件
+    """
     import warnings
     import yaml
     from pathlib import Path
@@ -1082,8 +1084,43 @@ def run_cmoc_valuation(
         cmoc_module = loader.load_module()
         CmocSOTP = cmoc_module.CmocSOTP
 
+        from common.core.discounting_engine import DiscountingEngine
+        from common.core.probability_weight import ProbabilityWeightEngine
+
         sotp = CmocSOTP.from_config()
         result = sotp.calculate(current_price)
+
+        # SOTP总值
+        total_cap = result.get("total_market_cap", 0)
+        shares = 213.9
+
+        # DCF估值：基于SOTP总利润估算FCF
+        total_nm = result.get("total_profit", 212)
+        wacc = rf + beta * 0.05
+        growth_rates = [0.10, 0.10, 0.08, 0.08, 0.05]
+        fcf_conv = 0.65
+        fcf_proj = [round(total_nm * (1 + g) * fcf_conv, 2) for g in growth_rates]
+        engine = DiscountingEngine()
+        dcf_result = engine.compute_dcf(
+            fcf_projections=fcf_proj,
+            terminal_fcf=fcf_proj[-1] * (1 + tg),
+            wacc=wacc,
+            net_debt=0,
+            shares=shares,
+            terminal_growth=tg,
+        )
+        dcf_price = dcf_result.get("目标价_元", 0)
+
+        # 概率加权估值（AI铜需求事件）
+        config_path = repo_root / "stocks/603993_cmoc/config.yaml"
+        with open(config_path, "r", encoding="utf-8") as f:
+            config = yaml.safe_load(f)
+        events = config.get("events", [])
+        weighted_price = None
+        if events:
+            pw = ProbabilityWeightEngine.from_config_list(events)
+            weighted_cap = pw.apply(total_cap)
+            weighted_price = weighted_cap / shares
 
         return {
             "target_price": result.get("target_price", 0),
@@ -1091,10 +1128,18 @@ def run_cmoc_valuation(
             "target_high": result.get("target_high", 0),
             "current_price": current_price,
             "upside": result.get("upside", 0),
-            "total_market_cap": result.get("total_market_cap", 0),
-            "total_profit": result.get("total_profit", 0),
+            "upside_low": result.get("upside_low", 0),
+            "upside_high": result.get("upside_high", 0),
+            "total_market_cap": total_cap,
+            "total_profit": total_nm,
             "segments": result.get("segments", []),
             "sotp_detail": result,
+            "sotp_cap_base": total_cap,
+            "dcf_price": dcf_price,
+            "weighted_price": weighted_price,
+            "fcf_proj": fcf_proj,
+            "wacc": wacc,
+            "wacc_pct": wacc * 100,
         }
     except Exception as e:
         print(f"⚠️ 洛阳钼业估值失败: {e}")
@@ -1107,6 +1152,9 @@ def run_cmoc_valuation(
             "current_price": current_price,
             "upside": 0,
             "segments": [],
+            "dcf_price": 0,
+            "weighted_price": None,
+            "fcf_proj": [138, 152, 167, 184, 202],
         }
 
 
