@@ -129,6 +129,16 @@ STOCK_REGISTRY = {
         "shares": 8.96,
         "config_path": "stocks/002270_huaming/config.yaml",
     },
+    "603993": {
+        "name": "洛阳钼业",
+        "code": "603993",
+        "market": "SH",
+        "currency": "CNY",
+        "currency_symbol": "¥",
+        "symbol_tencent": "sh603993",
+        "shares": 213.9,
+        "config_path": "stocks/603993_cmoc/config.yaml",
+    },
 }
 
 
@@ -289,9 +299,27 @@ def get_price_002270() -> float:
     return 25.93  # fallback
 
 
+def get_price_603993() -> float:
+    """获取洛阳钼业A股实时股价（腾讯行情API）"""
+    try:
+        import requests
+        resp = requests.get('https://qt.gtimg.cn/q=sh603993', timeout=10)
+        resp.encoding = 'gbk'
+        for line in resp.text.split('\n'):
+            if 'sh603993' in line:
+                parts = line.split('~')
+                price = float(parts[3]) if parts[3] else None
+                return price if price and price > 0 else 18.58
+    except Exception as e:
+        print(f"⚠️ 腾讯行情sh603993失败: {e}")
+    return 18.58  # fallback
+
+
 def get_current_price(stock_code: str) -> float:
     """根据股票代码获取实时股价"""
-    if stock_code == "002428":
+    if stock_code == "603993":
+        return get_price_603993()
+    elif stock_code == "002428":
         return get_price_002428()
     elif stock_code == "09988":
         return get_price_09988()
@@ -1285,6 +1313,7 @@ def main():
             "688608": "🇨🇳 恒玄科技 (688608)",
             "688018": "🇨🇳 乐鑫科技 (688018)",
             "002270": "🇨🇳 华明装备 (002270)",
+            "603993": "💰 洛阳钼业 (603993)",
         }
         selected = st.selectbox(
             "选择股票",
@@ -1322,6 +1351,10 @@ def main():
             mp = 0.05   # 科创板 5%
             beta_default = 0.95
             tg_default = 0.03
+        elif selected == "603993":
+            mp = 0.05   # A股 5%
+            beta_default = 1.1   # 资源股高beta
+            tg_default = 0.02
         else:
             mp = 0.07   # 港股 7%
             beta_default = 0.9
@@ -1420,6 +1453,16 @@ def main():
         sotp_min = val.get("sotp_min", None)
         sotp_max = val.get("sotp_max", None)
         df_history = pd.DataFrame()  # 华明暂无历史数据
+    elif selected == "603993":
+        val = run_cmoc_valuation(
+            rf=rf_val, beta=beta, tg=tg, current_price=current_price
+        )
+        sotp_price = val.get("target_price", 0)
+        sotp_min = val.get("target_low", 0)
+        sotp_max = val.get("target_high", 0)
+        dcf_price = val.get("dcf_price", 0)
+        weighted_price = val.get("weighted_price", None)
+        df_history = pd.DataFrame()
     elif selected == "00700":
         val = run_tencent_valuation(
             rf=rf_val, beta=beta, tg=tg, current_price=current_price,
@@ -1815,6 +1858,40 @@ def main():
 
             st.caption(f"📝 计算公式: 加权市值 = {sotp_base:.0f}亿港元 × (1 + Σ贡献) = {sotp_adj:.0f}亿港元 → 目标价 {val.get('weighted_price', 0):.1f}港元")
 
+        # 603993: SOTP分部分说明
+    if selected == "603993" and val.get("segments"):
+        st.markdown('<p class="section-header">📊 SOTP分部分说明（洛阳钼业603993）</p>', unsafe_allow_html=True)
+        seg_df = pd.DataFrame([
+            {
+                "分部": s["name"],
+                "预测净利(亿)": s["net_profit_cny"],
+                "PE倍数": s["pe_base"],
+                "分部估值(亿)": f'{s["cap_base"]:.0f}',
+                "PE区间": s["pe_range"],
+            }
+            for s in val["segments"]
+        ])
+        # 汇总行
+        total_profit = sum(s["net_profit_cny"] for s in val["segments"])
+        total_cap = sum(s["cap_base"] for s in val["segments"])
+        summary = pd.DataFrame([{
+            "分部": "合计",
+            "预测净利(亿)": total_profit,
+            "PE倍数": "-",
+            "分部估值(亿)": f'{total_cap:.0f}',
+            "PE区间": "-",
+        }])
+        seg_df = pd.concat([seg_df, summary], ignore_index=True)
+        st.dataframe(seg_df, use_container_width=True, hide_index=True)
+        
+        st.markdown('<p class="section-header">📈 情景分析</p>', unsafe_allow_html=True)
+        scenarios = [
+            {"情景": "基准（铜）", "目标价": f'{val["target_price"]}元', "涨幅": f'{val.get("upside",0)}%', "说明": "中性，当前铜价水平"},
+            {"情景": "乐观（铜）", "目标价": f'{val.get("target_low",0)*1.158:.1f}元', "涨幅": f'{((val.get("target_low",0)*1.158/val["current_price"])-1)*100:.1f}%', "说明": "铜价继续上涨"},
+            {"情景": "悲观（铜）", "目标价": f'{val.get("target_low",0)*0.722:.1f}元', "涨幅": f'{((val.get("target_low",0)*0.722/val["current_price"])-1)*100:.1f}%', "说明": "铜价大幅回落"},
+        ]
+        st.dataframe(pd.DataFrame(scenarios), use_container_width=True, hide_index=True)
+        
     # 002270: SOTP分部分说明 + DCF说明 + 概率加权说明
     if selected == "002270":
         sotp_detail = val.get('sotp_detail', {})
