@@ -1,0 +1,217 @@
+# 金信诺(300252) SOTP估值模型 - 配置文件
+# 深交所创业板，信号互联产品龙头，A股（CNY）
+# 最后一更新: 2026-06-04
+#
+# 数据来源:
+#   - 实时股价: 腾讯行情 API (sz300252)
+#   - 财务数据: 东方财富 https://emweb.securities.eastmoney.com/PC_HSF10/NewFinanceAnalysis/ZYZBAjaxNew?type=0&code=sz300252
+#   - 业务分拆: 公开招股书/年报综合估计
+#   - 当前市值: ~113.8亿（2026-06-04 收盘16.63元）
+#
+# 注意: 金信诺业务覆盖军工/通信/PCB/光纤，PE高达92.92x，市场给与成长预期溢价
+
+stock_info:
+  name: 金信诺
+  code: "300252"
+  market: A股 (深交所创业板)
+  currency: CNY
+  exchange: SZ
+  symbol_tencent: "sz300252"
+  total_shares: 6.84  # 亿股（总股本，2025年报）
+  float_shares: 5.59  # 亿股（流通股本）
+  hkd_cny_rate: 0.92  # 不适用但保留
+
+# 业务分部配置（SOTP）
+# 2025年报净利润约1.22亿（TTM），PE 92.92x反映成长预期
+# 分部净利润基于公开信息合理估计
+segments:
+  # 军工/航空航天信号互联（核心业务，壁垒高、毛利高）
+  - name: "军工与航空航天信号互联"
+    code: military
+    revenue_cny: 8.0   # 2026E营收（亿元）【估计】，基于2025年报军工占比~30%及行业增速
+    net_margin: 0.10    # 净利率10%（军工业务利润稳定但规模有限）
+    net_profit_cny: 0.80  # 8.0×10% = 0.80亿
+    pe_min: 60
+    pe_max: 100
+    pe_base: 80
+    notes: "军工/航空航天用射频电缆、连接器、信号互联组件，壁垒高、资质稀缺
+          行业对标：中航光电~30x、航天电器~35x
+          金信诺溢价原因：民参军小市值弹性、军品资质稀缺性、产品品类差异化（高频信号互联）
+          80x对应军工分部64亿估值，占SOTP总市值73%"
+
+  # 通信互联（5G基站、天线、光模块，含800G QSFP-DD新品）
+  - name: "通信互联产品"
+    code: telecom
+    revenue_cny: 10.0  # 2026E营收（亿元）【估计】，基于5G/AI光模块市场报告
+    net_margin: 0.04    # 净利率4%（通信竞争激烈，毛利偏低）
+    net_profit_cny: 0.40  # 10.0×4% = 0.40亿
+    pe_min: 30
+    pe_max: 60
+    pe_base: 45
+    notes: "5G天线/RF/光模块，800G QSFP-DD已量产，核心网产品商用超百局点
+          行业对标：中兴通讯~15x、烽火通信~30x
+          金信诺溢价原因：800G/1.6T光模块新品预期、细分品类差异（信号互联vs主设备商）
+          45x位于OFC参展同类光模块公司估值区间中段"
+
+  # PCB/HDI（近期毛利转负，处于转型期）
+  - name: "PCB/HDI业务"
+    code: pcb
+    revenue_cny: 5.0   # 2026E营收（亿元）【估计，收缩中】
+    net_margin: 0.00    # 净利率接近0%（近期毛利转负，见公司公告）
+    net_profit_cny: 0.00  # 5.0×0% = 0亿
+    pe_min: 15
+    pe_max: 30
+    pe_base: 20
+    notes: "PCB业务毛利转负（2025年报披露），正处于收缩/转型期，暂不贡献利润
+          PE仅作为转型成功后的参照（行业对标：深南电路~25x、兴森科技~30x）
+          当前净利为0，无论给多少PE该分部估值为0，不影响SOTP总量"
+
+  # 光纤光缆（光纤概念板块活跃，受益AI数据中心需求）
+  - name: "光纤光缆"
+    code: fiber
+    revenue_cny: 3.0   # 2026E营收（亿元）【估计】，基于数据中心光互联行业增速
+    net_margin: 0.05    # 净利率5%
+    net_profit_cny: 0.15  # 3.0×5% = 0.15亿
+    pe_min: 30
+    pe_max: 50
+    pe_base: 40
+    notes: "光纤光缆产品，受益AI数据中心光互联需求增长
+          行业对标：长飞光纤~20x、亨通光电~15x
+          金信诺溢价原因：AI数据中心驱动下光互联需求强劲、品类差异化（多模光纤/光模块配套）
+          40x约为行业均值2倍，反映AI主题下市场给与光纤概念的成长溢价"
+
+# 业绩基准（2025年报估算）
+base_year: "2025"
+base_revenue: 26.0   # 2025年报营收（亿元）【估计】
+base_net_profit: 1.22  # 2025年报归母净利润TTM（亿元）【PE倒推：113.8/92.92】
+base_eps: 0.18         # 2025EPS（摊薄，元）【1.22/6.84】
+shares: 6.84           # 总股本（亿股）
+
+# 成长预期（2026-2028）
+growth:
+  military:
+    rev_growth: 0.15   # 军工受益国防预算增长，15%增长
+    nm_improve: 0.02   # 规模效应+国产替代提升净利率
+  telecom:
+    rev_growth: 0.20   # 800G光模块放量，通信互联20%增长
+    nm_improve: 0.01
+  pcb:
+    rev_growth: 0.00   # PCB收缩，无增长
+    nm_improve: 0.02   # 转型后可能扭亏
+  fiber:
+    rev_growth: 0.25   # 光纤受益AI数据中心需求，25%增长
+    nm_improve: 0.00
+
+# DCF参数
+dcf:
+  wacc_base: 0.10      # WACC 10.0%（创业板，风险较高）
+  wacc_min: 0.09
+  wacc_max: 0.12
+  tg: 0.03            # 永续增长率3%
+  net_debt: -2.0      # 净现金约2亿（估计）
+
+# 敏感性分析
+sensitivity_analysis:
+  sotp:
+    pe_military_range: [60, 100]
+    pe_telecom_range: [30, 60]
+    pe_pcb_range: [15, 30]
+    pe_fiber_range: [30, 50]
+  dcf:
+    wacc_range: [0.09, 0.12]
+    tg_range: [0.02, 0.04]
+    terminal_multiple: [15, 25]
+
+# 事件驱动（概率加权）
+events:
+  - name: "800G/1.6T光模块量产放量"
+    probability: 0.60
+    magnitude: 1.20  # 上涨20%
+    impact: positive
+    description: "800G QSFP-DD产品完成研发，尚不确定量产规模和时间"
+
+  - name: "军工订单加速"
+    probability: 0.50
+    magnitude: 1.15  # 上涨15%
+    impact: positive
+    description: "国防预算增长，军工信号互联订单加速落地"
+
+  - name: "核心网产品突破"
+    probability: 0.35
+    magnitude: 1.25  # 上涨25%
+    impact: positive
+    description: "核心网产品从百局点向千局点突破，规模效应显现"
+
+  - name: "PCB业务继续恶化"
+    probability: 0.30
+    magnitude: 0.85  # 下跌15%
+    impact: negative
+    description: "PCB毛利率持续下降，拖累整体盈利能力"
+
+  - name: "原材料价格大幅波动"
+    probability: 0.30
+    magnitude: 0.90  # 下跌10%
+    impact: negative
+    description: "铜/锡等原材料价格大幅上涨，套保无法完全对冲风险"
+
+# 估值说明
+methodology_notes: |
+  - SOTP: 按业务分部估值，加权PE（中枢×净利润），分部营收为【估计】值
+    军工8亿←基于2025年报军工占比~30%+行业增速15%
+    通信10亿←基于5G/AI光模块市场报告及公司800G产品线
+    PCB 5亿←基于年报披露（收缩中）
+    光纤3亿←基于AI数据中心光互联需求增速
+  - DCF: 基于2025年净利×1.15（+15%增长）作为DCF起点。
+    ⚠️ DCF仅4.0元，**远低于SOTP和当前价**，原因：
+      金信诺属于低资产周转、高成长预期企业（当前PE 92.92x），
+      1.35亿净利润→65% FCF转化率→0.88亿自由现金流起点过小，
+      DCF天然低估此类企业，**SOTP更适合作为主要估值方法**
+  - 概率加权: 不同情景下的SOTP市值加权平均
+  - SOTP隐含PE = 65.2x（88亿市值÷1.35亿净利），
+    低于当前市场PE 92.92x，说明模型偏保守
+
+  【金信诺核心逻辑】
+  - 军工信号互联壁垒高，受益国防现代化
+  - 800G光模块/AI数据中心互联是中期催化剂
+  - PCB业务拖累整体盈利能力，需关注转型进程
+  - 核心网产品从百局点起步，弹性大但确定性低
+
+  【行业PE对标一览】
+  - 军工：行业均值~30-35x（中航光电30x/航天电器35x）
+    金信诺60-100x（中枢80x），主因民参军小市值弹性+品类差异化
+  - 通信：行业均值~15-30x（中兴通讯15x/烽火通信30x）
+    金信诺30-60x（中枢45x），主因800G光模块新品+光互联主题溢价
+  - PCB：行业均值~25-30x（深南电路25x/兴森科技30x）
+    金信诺15-30x（中枢20x），低于行业平均，反映收缩期低预期
+  - 光纤：行业均值~15-20x（长飞光纤20x/亨通光电15x）
+    金信诺30-50x（中枢40x），约为行业2倍，反映AI数据中心光互联主题溢价
+
+display_preferences:
+  currency_symbol: "¥"
+  price_precision: 2
+  show_probability_weighted: true
+
+# 财务数据来源（供Dashboard展示）
+financial_data:
+  base_year: "2025"
+  data_sources:
+    - name: "东方财富-个股数据"
+      url: "https://emweb.securities.eastmoney.com/PC_HSF10/NewFinanceAnalysis/ZYZBAjaxNew?type=0&code=sz300252"
+      description: "归母净利润TTM约1.22亿、总股本6.84亿股"
+    - name: "雪球-金信诺"
+      url: "https://xueqiu.com/S/SZ300252"
+      description: "历史财务数据、机构预测、股东信息"
+    - name: "新浪财经-个股行情"
+      url: "https://finance.sina.com.cn/realstock/company/sz300252/nc.shtml"
+      description: "实时行情、新闻公告"
+    - name: "腾讯行情-API"
+      url: "https://gu.qq.com/sz300252"
+      description: "实时股价、PE 92.92、PB 4.60"
+  key_metrics:
+    revenue_cny: 26.0
+    net_profit_cny: 1.22
+    net_margin: 4.7
+    total_shares: 6.84
+    float_ratio: 0.82
+    roe: 3.9
+    eps: 0.18
