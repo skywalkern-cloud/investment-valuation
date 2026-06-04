@@ -140,6 +140,18 @@ STOCK_REGISTRY = {
         "config_path": "stocks/603993_cmoc/config.yaml",
         "fcf_proj": [138, 152, 167, 184, 202],  # 亿元（基于SOTP利润×65% FCF转化率，年增10%假设）
     },
+    "300252": {
+        "name": "金信诺",
+        "code": "300252",
+        "market": "SZ",
+        "currency": "CNY",
+        "currency_symbol": "¥",
+        "symbol_tencent": "sz300252",
+        "shares": 6.84,
+        "config_path": "stocks/300252_jinxinnuo/config.yaml",
+        "model_path": "stocks/300252_jinxinnuo/model.py",
+        "fcf_proj": [1.01, 1.15, 1.29, 1.42, 1.53],  # 亿元（基于净利1.35亿×65% FCF转化率，年增15-8%）
+    },
 }
 
 
@@ -316,6 +328,22 @@ def get_price_603993() -> float:
     return 18.58  # fallback
 
 
+def get_price_300252() -> float:
+    """获取金信诺A股实时股价（腾讯行情API）"""
+    try:
+        import requests
+        resp = requests.get('https://qt.gtimg.cn/q=sz300252', timeout=10)
+        resp.encoding = 'gbk'
+        for line in resp.text.split('\n'):
+            if 'sz300252' in line:
+                parts = line.split('~')
+                price = float(parts[3]) if parts[3] else None
+                return price if price and price > 0 else 16.63
+    except Exception as e:
+        print(f"⚠️ 腾讯行情sz300252失败: {e}")
+    return 16.63  # fallback
+
+
 def get_current_price(stock_code: str) -> float:
     """根据股票代码获取实时股价"""
     if stock_code == "603993":
@@ -334,6 +362,8 @@ def get_current_price(stock_code: str) -> float:
         return get_price_688018()
     elif stock_code == "002270":
         return get_price_002270()
+    elif stock_code == "300252":
+        return get_price_300252()
     return 0.0
 
 
@@ -1056,6 +1086,97 @@ def run_huaming_valuation(
         return {"sotp_price": 0, "dcf_price": 0, "current_price": current_price, "fcf_proj": [0, 0, 0, 0, 0]}
 
 
+# ========== 金信诺估值 ==========
+def run_jinxinnuo_valuation(
+    rf: float, beta: float, tg: float, current_price: float,
+    cost_of_debt: float = 0.045, tax_rate: float = 0.15, debt_ratio: float = 0.2
+) -> Dict[str, Any]:
+    """金信诺(300252)估值计算"""
+    import warnings
+    import yaml
+    from pathlib import Path
+    warnings.filterwarnings('ignore')
+
+    repo_root = Path(__file__).parent.parent.parent
+    import sys
+    for mod in ['model', 'jinxinnuo_model']:
+        if mod in sys.modules:
+            del sys.modules[mod]
+    sys.path.insert(0, str(repo_root))
+    sys.path.insert(0, str(repo_root / 'stocks' / '300252_jinxinnuo'))
+    sys.path.insert(0, str(repo_root / 'common'))
+
+    try:
+        import importlib.machinery
+        model_path = repo_root / 'stocks' / '300252_jinxinnuo' / 'model.py'
+        loader = importlib.machinery.SourceFileLoader('jinxinnuo_model', str(model_path))
+        jx_module = loader.load_module()
+        JinxinnuoSOTP = jx_module.JinxinnuoSOTP
+
+        from common.core.discounting_engine import DiscountingEngine
+        from common.core.probability_weight import ProbabilityWeightEngine
+
+        sotp = JinxinnuoSOTP.from_config()
+        sotp_result = sotp.calculate(current_price)
+
+        config_path = repo_root / 'stocks/300252_jinxinnuo/config.yaml'
+        with open(config_path, 'r', encoding='utf-8') as f:
+            config = yaml.safe_load(f)
+
+        total_nm = sotp_result.get('total_net_profit', 0)
+        shares = 6.84
+        wacc = rf + beta * 0.045
+        growth_rates = [0.15, 0.14, 0.12, 0.10, 0.08]
+        fcf_conv = 0.65
+        base_fcf = total_nm * fcf_conv
+        fcf_proj = []
+        cf = base_fcf
+        for g in growth_rates:
+            cf *= (1 + g)
+            fcf_proj.append(round(cf, 2))
+
+        engine = DiscountingEngine()
+        dcf_result = engine.compute_dcf(
+            fcf_projections=fcf_proj,
+            terminal_fcf=fcf_proj[-1] * (1 + tg),
+            wacc=wacc,
+            net_debt=-2.0,
+            shares=shares,
+            terminal_growth=tg,
+        )
+        dcf_price = dcf_result.get('目标价_元', 0)
+
+        sotp_cap_base = sotp_result.get('sotp_cap_base', 0)
+        events = config.get('events', [])
+        weighted_price = None
+        pw_detail = None
+        if events:
+            pw = ProbabilityWeightEngine.from_config_list(events)
+            weighted_cap = pw.apply(sotp_cap_base)
+            weighted_price = weighted_cap / shares
+            pw_detail = pw.breakdown(sotp_cap_base)
+
+        return {
+            "sotp_price": sotp_result.get('target_base', 0),
+            "sotp_min": sotp_result.get('target_min', None),
+            "sotp_max": sotp_result.get('target_max', None),
+            "dcf_price": dcf_price,
+            "weighted_price": weighted_price,
+            "current_price": current_price,
+            "sotp_detail": sotp_result,
+            "total_net_profit": total_nm,
+            "fcf_proj": fcf_proj,
+            "wacc": wacc,
+            "wacc_pct": wacc * 100,
+            "sotp_cap_base": sotp_cap_base,
+            "pw_detail": pw_detail,
+            "financial_data": config.get('financial_data', {}),
+        }
+    except Exception as e:
+        import traceback
+        st.error(f"⚠️ 金信诺估值计算失败: {str(e)[:200]}")
+        return {"sotp_price": 0, "dcf_price": 0, "current_price": current_price, "fcf_proj": [0, 0, 0, 0, 0]}
+
 
 def run_cmoc_valuation(
     rf: float, beta: float, tg: float, current_price: float
@@ -1425,6 +1546,7 @@ def main():
             "688018": "🇨🇳 乐鑫科技 (688018)",
             "002270": "🇨🇳 华明装备 (002270)",
             "603993": "💰 洛阳钼业 (603993)",
+            "300252": "🇨🇳 金信诺 (300252)",
         }
         selected = st.selectbox(
             "选择股票",
@@ -1466,6 +1588,10 @@ def main():
             mp = 0.05   # A股 5%
             beta_default = 1.1   # 资源股高beta
             tg_default = 0.02
+        elif selected == "300252":
+            mp = 0.05   # A股 5%
+            beta_default = 1.3   # 创业板，高beta
+            tg_default = 0.03
         else:
             mp = 0.07   # 港股 7%
             beta_default = 0.9
@@ -1574,6 +1700,16 @@ def main():
         dcf_price = val.get("dcf_price", 0)
         weighted_price = val.get("weighted_price", None)
         df_history = pd.DataFrame()
+    elif selected == "300252":
+        val = run_jinxinnuo_valuation(
+            rf=rf_val, beta=beta, tg=tg, current_price=current_price
+        )
+        sotp_price = val.get("sotp_price", 0)
+        sotp_min = val.get("sotp_min", None)
+        sotp_max = val.get("sotp_max", None)
+        dcf_price = val.get("dcf_price", 0)
+        weighted_price = val.get("weighted_price", None)
+        df_history = pd.DataFrame()
     elif selected == "00700":
         val = run_tencent_valuation(
             rf=rf_val, beta=beta, tg=tg, current_price=current_price,
@@ -1607,6 +1743,66 @@ def main():
         sotp_min=sotp_min, sotp_max=sotp_max,
         weighted_price=weighted_price
     )
+
+    # 300252: SOTP分部分说明
+    if selected == "300252" and val.get("sotp_detail"):
+        sotp_detail = val["sotp_detail"]
+        segments = sotp_detail.get('segments', [])
+        if segments:
+            st.markdown("---")
+            st.markdown('<p class="section-header">📊 SOTP分部分说明（金信诺300252）</p>', unsafe_allow_html=True)
+            for seg in segments:
+                st.markdown(f"""
+                **【{seg['name']}】**
+                | 参数 | 值 |
+                |---|---|
+                | 收入(CNY) | **{(seg.get('revenue_cny') or 0):.1f}亿元** |
+                | 净利率 | {(seg.get('net_margin') or 0) * 100:.1f}% |
+                | 净利润(CNY) | **{(seg.get('net_profit_cny') or 0):.2f}亿元** |
+                | PE区间 | {seg['pe_range']} (中枢{seg['pe_base']}x) |
+                | 市值(CNY) | **{(seg.get('cap_base') or 0):.1f}亿元** ({seg['pct']}) |
+                """)
+            # SOTP合计
+            _sotp_252 = (val.get("sotp_price") or 0)
+            _cur_252 = (val.get("current_price") or 0)
+            _up_252 = ((_sotp_252 / max(_cur_252, 1)) - 1) * 100 if _cur_252 > 0 else -100
+            total_nm_252 = sotp_detail.get('total_net_profit', 0)
+            sotp_cap = val.get('sotp_cap_base', 0)
+            st.markdown(f"""
+            **【SOTP合计】**
+            | 指标 | 值 |
+            |---|---|
+            | 总净利润(CNY) | **{(total_nm_252 or 0):.2f}亿元** |
+            | SOTP总市值(CNY) | **{(sotp_cap or 0):.1f}亿元** |
+            | 当前价(CNY) | {(_cur_252 or 0):.2f} |
+            | 上涨空间 | {_up_252:+.1f}% |
+            | DCF目标价 | {(val.get('dcf_price') or 0):.2f}元 |
+            | 概率加权 | {(val.get('weighted_price') or 0):.2f}元 |
+            """)
+        
+        # 概率加权事件拆解
+        pw_detail = val.get("pw_detail")
+        if pw_detail and pw_detail.get('events'):
+            st.markdown("---")
+            st.markdown('<p class="section-header">📊 概率加权事件拆解</p>', unsafe_allow_html=True)
+            ev_rows = []
+            for ev in pw_detail['events']:
+                direction = "↑" if ev.get('impact') == "positive" else "↓"
+                ev_rows.append({
+                    '事件': ev.get('name', ''),
+                    '概率': f"{ev.get('probability', 0) * 100:.0f}%",
+                    '影响': direction,
+                    '幅度': f"{abs(ev.get('magnitude', 1) - 1) * 100:.0f}%",
+                    '贡献': f"{ev.get('contribution', 0) * 100:+.1f}%",
+                })
+            st.dataframe(pd.DataFrame(ev_rows),
+                column_config={"事件": "关键事件", "概率": "概率", "影响": "方向", "幅度": "幅度", "贡献": "对估值贡献"},
+                hide_index=True, use_container_width=True)
+
+            total_mult = pw_detail.get('total_multiplier', 1.0)
+            base_v = pw_detail.get('base_value', 0)
+            adj_v = pw_detail.get('adjusted_value', 0)
+            st.caption(f"基准市值: ¥{base_v:.1f}亿 × {total_mult:.3f} = **{adj_v:.1f}亿** → 概率加权目标价: **{(val.get('weighted_price') or 0):.2f}元**")
 
     if selected == "09988" and val.get("sotp_detail"):
         st.markdown("---")
